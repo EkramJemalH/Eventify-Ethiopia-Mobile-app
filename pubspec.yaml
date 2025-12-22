@@ -54,6 +54,8 @@ flutter:
   assets:
     - assets/images/Eventify.png
     - assets/images/profile.png
+    - assets/images/party.jpg
+    - assets/images/tech.jpg
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

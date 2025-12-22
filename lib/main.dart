@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'splash_screen.dart';
+import 'ExploreHome.dart'; // Import your ExploreHome page
 
 void main() {
-  runApp(const EventifyApp());
+  runApp(EventifyApp());
 }
 
 class EventifyApp extends StatelessWidget {
@@ -16,7 +16,7 @@ class EventifyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const SplashScreen(),
+      home: ExploreHome(), // <-- Remove const here
     );
   }
 }

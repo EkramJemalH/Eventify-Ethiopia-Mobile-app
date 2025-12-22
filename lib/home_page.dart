@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'auth/login_page.dart'; // Add this import
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,11 +11,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String selectedRole = ''; // stores selected role
 
-  void showRoleMessage(String role) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('You selected $role!'),
-        duration: const Duration(seconds: 2),
+  void goToLogin(String role) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LoginPage(role: role.toLowerCase()), // Navigate to LoginPage
       ),
     );
   }
@@ -28,10 +29,10 @@ class _HomePageState extends State<HomePage> {
           children: [
             const SizedBox(height: 20),
 
-            // Circular profile/banner image
+            // Logo
             ClipOval(
               child: Image.asset(
-                'assets/images/profile.png',
+                'assets/images/profile.png', // Use your logo
                 width: 120,
                 height: 120,
                 fit: BoxFit.cover,
@@ -40,7 +41,6 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 20),
 
-            // Welcome text
             const Text(
               'Welcome to Eventify Ethiopia',
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
@@ -49,22 +49,17 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 10),
 
-            // Subtitle text
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Discover Ethiopia’s Events All in One Place,\nwho are you',
+                'Discover Ethiopia’s Events All in One Place,\nWho are you?',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color.fromARGB(255, 13, 13, 13),
-                ),
+                style: TextStyle(fontSize: 16),
               ),
             ),
 
             const SizedBox(height: 30),
 
-            // Role buttons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(
@@ -72,11 +67,11 @@ class _HomePageState extends State<HomePage> {
                   // Explorer button
                   ElevatedButton(
                     onPressed: () {
-                      setState(() => selectedRole = 'Explorer');
-                      showRoleMessage('I am an Explorer');
+                      setState(() => selectedRole = 'explorer');
+                      goToLogin('explorer'); // Navigate to login
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedRole == 'Explorer'
+                      backgroundColor: selectedRole == 'explorer'
                           ? Colors.orange
                           : Colors.grey[300],
                       minimumSize: const Size(double.infinity, 50),
@@ -88,7 +83,7 @@ class _HomePageState extends State<HomePage> {
                       'I am an Explorer',
                       style: TextStyle(
                         fontSize: 18,
-                        color: selectedRole == 'Explorer'
+                        color: selectedRole == 'explorer'
                             ? Colors.white
                             : Colors.black,
                       ),
@@ -100,11 +95,11 @@ class _HomePageState extends State<HomePage> {
                   // Event Organizer button
                   ElevatedButton(
                     onPressed: () {
-                      setState(() => selectedRole = 'Event Organizer');
-                      showRoleMessage('I am an Event Organizer');
+                      setState(() => selectedRole = 'organizer');
+                      goToLogin('organizer'); // Navigate to login
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedRole == 'Event Organizer'
+                      backgroundColor: selectedRole == 'organizer'
                           ? Colors.orange
                           : Colors.grey[300],
                       minimumSize: const Size(double.infinity, 50),
@@ -116,7 +111,7 @@ class _HomePageState extends State<HomePage> {
                       'I am an Event Organizer',
                       style: TextStyle(
                         fontSize: 18,
-                        color: selectedRole == 'Event Organizer'
+                        color: selectedRole == 'organizer'
                             ? Colors.white
                             : Colors.black,
                       ),
