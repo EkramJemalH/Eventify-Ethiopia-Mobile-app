@@ -1,14 +1,31 @@
 import 'package:flutter/material.dart';
-import 'settings_page.dart'; // Make sure this file exists
+import 'settings_page.dart';
 
-class ProfilePage extends StatelessWidget {
-  ProfilePage({Key? key}) : super(key: key);
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({Key? key}) : super(key: key);
 
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController cityController = TextEditingController();
-  final TextEditingController passportController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool obscurePassword = true;
+
+  @override
+  void dispose() {
+    fullNameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    cityController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +41,10 @@ class ProfilePage extends StatelessWidget {
             child: Center(
               child: Text(
                 'Back',
-                style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -43,10 +63,11 @@ class ProfilePage extends StatelessWidget {
             padding: const EdgeInsets.only(right: 16),
             child: GestureDetector(
               onTap: () {
-                // Navigate to Settings Page
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsPage(),
+                  ),
                 );
               },
               child: const Icon(Icons.settings, color: Colors.black),
@@ -58,76 +79,114 @@ class ProfilePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           const SizedBox(height: 20),
-          // Profile image with camera icon
+
+          // Profile image
           Center(
             child: Stack(
               children: [
                 const CircleAvatar(
                   radius: 50,
-                  backgroundImage: AssetImage('assets/images/profile.png'),
+                  backgroundImage:
+                      AssetImage('assets/images/profile.png'),
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Colors.orange,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+
           const SizedBox(height: 12),
-          // Name and role
+
           const Center(
-            child: Text('Explorer User',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Explorer User',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
+
           const SizedBox(height: 24),
-          // Personal Information Section
-          const Text('Personal Information',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+          const Text(
+            'Personal Information',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
           const SizedBox(height: 12),
+
           _buildInputField('Full Name', fullNameController),
           const SizedBox(height: 12),
+
           _buildInputField('Email', emailController),
           const SizedBox(height: 12),
+
           _buildInputField('Phone Number', phoneController),
           const SizedBox(height: 12),
+
           _buildInputField('City', cityController),
           const SizedBox(height: 12),
-          _buildInputField('Passport', passportController),
+
+          _buildPasswordField(),
           const SizedBox(height: 24),
-          // Save Changes button
+
+          // Save button
           ElevatedButton(
             onPressed: () {
-              // Save changes logic
+              // TODO: Save changes logic
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text(
               'Save Changes',
-              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
+
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildInputField(String label, TextEditingController controller) {
+  Widget _buildInputField(
+      String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -138,7 +197,46 @@ class ProfilePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
-            hintStyle: TextStyle(color: Colors.black.withOpacity(0.6)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Password',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: passwordController,
+          obscureText: obscurePassword,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFFAEBDB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscurePassword
+                    ? Icons.visibility_off
+                    : Icons.visibility,
+              ),
+              onPressed: () {
+                setState(() {
+                  obscurePassword = !obscurePassword;
+                });
+              },
+            ),
           ),
         ),
       ],

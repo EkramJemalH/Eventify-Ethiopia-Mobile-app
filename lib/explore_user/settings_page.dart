@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'my_booking_page.dart'; // 👈 ADD THIS
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -11,6 +12,7 @@ class SettingsPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           const SizedBox(height: 40),
+
           // Back button
           GestureDetector(
             onTap: () => Navigator.pop(context),
@@ -23,8 +25,10 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 40), // Top margin for Settings title
-          // Settings Title centered
+
+          const SizedBox(height: 40),
+
+          // Settings Title
           const Center(
             child: Text(
               'Settings',
@@ -34,22 +38,39 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
+
           const SizedBox(height: 32),
-          // Booking History Button (aligned left)
-          _buildButton('Booking History', onPressed: () {
-            // Navigate to booking history page if needed
-          }),
+
+          // Booking History Button
+          _buildButton(
+            'Booking History',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MyBookingPage(),
+                ),
+              );
+            },
+          ),
+
           const SizedBox(height: 16),
+
           // Delete Account Button
-          _buildButton('Delete Account', onPressed: () {
-            // Delete account logic
-          }),
+          _buildButton(
+            'Delete Account',
+            onPressed: () {
+              // TODO: Delete account logic
+            },
+          ),
+
           const SizedBox(height: 16),
-          // Logout Button (orange)
+
+          // Logout Button
           _buildButton(
             'Logout',
             onPressed: () {
-              // Logout logic
+              // TODO: Logout logic
             },
             color: Colors.orange,
           ),
@@ -58,18 +79,23 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(String text,
-      {required VoidCallback onPressed, Color color = const Color(0xFFFAEBDB)}) {
+  Widget _buildButton(
+    String text, {
+    required VoidCallback onPressed,
+    Color color = const Color(0xFFFAEBDB),
+  }) {
     return Align(
-      alignment: Alignment.centerLeft, // Left align
+      alignment: Alignment.centerLeft,
       child: SizedBox(
-        width: 250, // Slightly higher width
+        width: 250,
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: color,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: Text(
             text,

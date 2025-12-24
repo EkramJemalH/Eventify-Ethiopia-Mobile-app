@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ExploreHome.dart'; // Import your ExploreHome page
+import 'explore_user/ExploreHome.dart'; // Import your ExploreHome page
 
 void main() {
   runApp(EventifyApp());
