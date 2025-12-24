@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'explorer_user/ExploreHome.dart'; // Import your ExploreHome page
+import 'organizer/organizer_dashboard_page.dart';
 
 void main() {
   runApp(EventifyApp());
 }
 
 class EventifyApp extends StatelessWidget {
-  const EventifyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Eventify',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
       ),
-      home: ExploreHome(), // <-- Remove const here
+      home: OrganizerDashboardPage(), // ✅ NO const
     );
   }
 }
