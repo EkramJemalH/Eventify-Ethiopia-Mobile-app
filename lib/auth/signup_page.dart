@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
+import '../services/auth_service.dart';
+import '../explorer_user/ExplorerHome.dart';
+import '../organizer/organizer_dashboard_page.dart';
 
 class SignupPage extends StatefulWidget {
   final String role;
@@ -18,17 +23,23 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    fullNameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final double buttonWidth = MediaQuery.of(context).size.width * 0.85;
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-      ),
+      // REMOVED AppBar completely
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
@@ -46,7 +57,17 @@ class _SignupPageState extends State<SignupPage> {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
+
+              Text(
+                'as ${widget.role[0].toUpperCase()}${widget.role.substring(1)}',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+
+              const SizedBox(height: 30),
 
               _buildInputField(
                 controller: fullNameController,
@@ -86,7 +107,7 @@ class _SignupPageState extends State<SignupPage> {
 
               const SizedBox(height: 30),
 
-              // Create Account Button (slightly smaller width)
+              // Create Account Button
               SizedBox(
                 width: buttonWidth,
                 height: 55,
@@ -133,12 +154,12 @@ class _SignupPageState extends State<SignupPage> {
 
               const SizedBox(height: 20),
 
-              // Google Button (same width, gray background)
+              // Google Button
               SizedBox(
                 width: buttonWidth,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: isLoading ? null : _signUpWithGoogle,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD9D9D9),
                     foregroundColor: Colors.black,
@@ -147,21 +168,32 @@ class _SignupPageState extends State<SignupPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Continue with Google',
-                    style: TextStyle(fontSize: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/google.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Continue with Google',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // Apple Button (same width, gray background)
+              // Apple Button
               SizedBox(
                 width: buttonWidth,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: isLoading ? null : _signUpWithApple,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD9D9D9),
                     foregroundColor: Colors.black,
@@ -170,9 +202,16 @@ class _SignupPageState extends State<SignupPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Continue with Apple',
-                    style: TextStyle(fontSize: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.apple, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        'Continue with Apple',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -265,6 +304,7 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
+  // ===================== EMAIL SIGN UP =====================
   void _signUpWithEmail() async {
     if (fullNameController.text.isEmpty) {
       _showMessage('Please enter your full name');
@@ -287,17 +327,117 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     setState(() => isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => isLoading = false);
 
-    _showMessage('${widget.role} account created successfully!');
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      final user = await authService.signUpWithEmail(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        fullName: fullNameController.text.trim(),
+        role: widget.role,
+      );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LoginPage(role: widget.role),
-      ),
-    );
+      if (user != null) {
+        _showSuccess('${widget.role} account created successfully!');
+        
+        // Navigate to appropriate dashboard
+        _navigateToDashboard();
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Sign up failed';
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage = 'This email is already registered';
+          break;
+        case 'weak-password':
+          errorMessage = 'Password is too weak';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled';
+          break;
+        default:
+          errorMessage = 'Sign up failed: ${e.message}';
+      }
+      _showError(errorMessage);
+    } catch (e) {
+      _showError('An unexpected error occurred');
+      print('Email sign up error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== GOOGLE SIGN UP =====================
+  void _signUpWithGoogle() async {
+    setState(() => isLoading = true);
+    
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = await authService.signInWithGoogle(role: widget.role);
+      
+      if (user != null) {
+        _showSuccess('Google sign up successful!');
+        _navigateToDashboard();
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError('Google sign up failed: ${e.message}');
+      print('Google sign up error: ${e.code} - ${e.message}');
+    } catch (e) {
+      _showError('Google sign up failed');
+      print('Google sign up error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== APPLE SIGN UP =====================
+  void _signUpWithApple() async {
+    setState(() => isLoading = true);
+    
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = await authService.signInWithApple(role: widget.role);
+      
+      if (user != null) {
+        _showSuccess('Apple sign up successful!');
+        _navigateToDashboard();
+      } else {
+        _showError('Apple Sign-In is not available yet. Please use email or Google.');
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError('Apple sign up failed: ${e.message}');
+      print('Apple sign up error: ${e.code} - ${e.message}');
+    } catch (e) {
+      _showError('Apple sign up failed');
+      print('Apple sign up error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== HELPER METHODS =====================
+  void _navigateToDashboard() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (widget.role == 'explorer') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExploreHome(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrganizerDashboardPage(),
+          ),
+        );
+      }
+    });
   }
 
   void _showMessage(String message) {
@@ -305,6 +445,27 @@ class _SignupPageState extends State<SignupPage> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
       ),
     );
   }

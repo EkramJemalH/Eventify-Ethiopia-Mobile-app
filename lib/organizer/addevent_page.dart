@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class AddEventPage extends StatefulWidget {
-  const AddEventPage({super.key});
+  final String userId; // Added userId
+
+  const AddEventPage({super.key, required this.userId});
 
   @override
   State<AddEventPage> createState() => _AddEventPageState();
@@ -21,6 +25,60 @@ class _AddEventPageState extends State<AddEventPage> {
 
   String category = 'Sports & Fitness';
   bool isFree = true;
+
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  @override
+  void dispose() {
+    _eventNameController.dispose();
+    _eventDateController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
+    _locationController.dispose();
+    _detailsController.dispose();
+    _ticketPriceController.dispose();
+    _paymentLinkController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createEvent() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final newEvent = {
+      'title': _eventNameController.text.trim(),
+      'date': _eventDateController.text.trim(),
+      'startTime': _startTimeController.text.trim(),
+      'endTime': _endTimeController.text.trim(),
+      'location': _locationController.text.trim(),
+      'details': _detailsController.text.trim(),
+      'category': category,
+      'isFree': isFree,
+      'price': isFree ? 0 : double.tryParse(_ticketPriceController.text.trim()) ?? 0,
+      'paymentLink': _paymentLinkController.text.trim(),
+      'creatorId': widget.userId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'image': '', // TODO: Replace with actual image URL
+      'video': '', // TODO: Replace with actual video URL
+    };
+
+    try {
+      await _dbRef.child('events').push().set(newEvent);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Event created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context); // Go back to dashboard
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to create event: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +100,7 @@ class _AddEventPageState extends State<AddEventPage> {
                   labelText: 'Event Name*',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Enter event name';
-                  return null;
-                },
+                validator: (value) => (value == null || value.isEmpty) ? 'Enter event name' : null,
               ),
               const SizedBox(height: 16),
 
@@ -70,6 +125,7 @@ class _AddEventPageState extends State<AddEventPage> {
                         "${pickedDate.day}-${pickedDate.month}-${pickedDate.year}";
                   }
                 },
+                validator: (value) => (value == null || value.isEmpty) ? 'Select event date' : null,
               ),
               const SizedBox(height: 16),
 
@@ -90,10 +146,10 @@ class _AddEventPageState extends State<AddEventPage> {
                           initialTime: TimeOfDay.now(),
                         );
                         if (pickedTime != null) {
-                          _startTimeController.text =
-                              pickedTime.format(context);
+                          _startTimeController.text = pickedTime.format(context);
                         }
                       },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Select start time' : null,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -114,6 +170,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           _endTimeController.text = pickedTime.format(context);
                         }
                       },
+                      validator: (value) => (value == null || value.isEmpty) ? 'Select end time' : null,
                     ),
                   ),
                 ],
@@ -123,20 +180,10 @@ class _AddEventPageState extends State<AddEventPage> {
               // Category
               DropdownButtonFormField<String>(
                 value: category,
-                items: <String>[
-                  'Sports & Fitness',
-                  'Music',
-                  'Business',
-                  'Art',
-                  'Other'
-                ]
+                items: <String>['Sports & Fitness', 'Music', 'Business', 'Art', 'Other']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
-                onChanged: (val) {
-                  setState(() {
-                    category = val!;
-                  });
-                },
+                onChanged: (val) => setState(() => category = val!),
                 decoration: const InputDecoration(
                   labelText: 'Category*',
                   border: OutlineInputBorder(),
@@ -157,6 +204,7 @@ class _AddEventPageState extends State<AddEventPage> {
                     },
                   ),
                 ),
+                validator: (value) => (value == null || value.isEmpty) ? 'Enter location' : null,
               ),
               const SizedBox(height: 16),
 
@@ -179,11 +227,7 @@ class _AddEventPageState extends State<AddEventPage> {
                       title: const Text('Free'),
                       value: true,
                       groupValue: isFree,
-                      onChanged: (val) {
-                        setState(() {
-                          isFree = val!;
-                        });
-                      },
+                      onChanged: (val) => setState(() => isFree = val!),
                     ),
                   ),
                   Expanded(
@@ -191,11 +235,7 @@ class _AddEventPageState extends State<AddEventPage> {
                       title: const Text('Paid'),
                       value: false,
                       groupValue: isFree,
-                      onChanged: (val) {
-                        setState(() {
-                          isFree = val!;
-                        });
-                      },
+                      onChanged: (val) => setState(() => isFree = val!),
                     ),
                   ),
                 ],
@@ -208,6 +248,9 @@ class _AddEventPageState extends State<AddEventPage> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  validator: (value) => (!isFree && (value == null || value.isEmpty))
+                      ? 'Enter ticket price'
+                      : null,
                 ),
               const SizedBox(height: 16),
 
@@ -218,40 +261,6 @@ class _AddEventPageState extends State<AddEventPage> {
                   labelText: 'Payment Link',
                   border: OutlineInputBorder(),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Upload Media
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: pick photo
-                      },
-                      icon: const Icon(Icons.photo),
-                      label: const Text('Photo'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: pick video
-                      },
-                      icon: const Icon(Icons.video_collection),
-                      label: const Text('Video'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 16),
 
@@ -281,11 +290,7 @@ class _AddEventPageState extends State<AddEventPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // TODO: Add create event logic
-                        }
-                      },
+                      onPressed: _createEvent,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         padding: const EdgeInsets.symmetric(vertical: 14),

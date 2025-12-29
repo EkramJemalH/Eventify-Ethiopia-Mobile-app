@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "269730589276",
+    "project_id": "eventify-ethiopia",
+    "storage_bucket": "eventify-ethiopia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:269730589276:android:fd0c70ca58e6eebf9fd499",
+        "android_client_info": {
+          "package_name": "com.eventify.ethiopia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbuAQf2gdSwVqnrT9OzQsqiQ1u9SI_tgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:269730589276:android:45aec42209e283fa9fd499",
+        "android_client_info": {
+          "package_name": "com.example.eventify_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbuAQf2gdSwVqnrT9OzQsqiQ1u9SI_tgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

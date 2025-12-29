@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'event_detail_page.dart';
-import 'profile_page.dart'; // Make sure this file exists
+import '../profile_page.dart'; // Make sure this file exists
 
 class ExploreHome extends StatefulWidget {
   ExploreHome({Key? key}) : super(key: key);

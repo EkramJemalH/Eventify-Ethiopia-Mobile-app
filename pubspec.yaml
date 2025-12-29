@@ -30,7 +30,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  
+  # Firebase Core
+  firebase_core: ^2.28.0
+  
+  # Firebase Auth - Use latest stable
+  firebase_auth: ^4.17.1
+  
+  # Firebase Database
+  firebase_database: ^10.3.1
+  
+  # Other Firebase packages
+  google_sign_in: ^6.1.6
+  sign_in_with_apple: ^5.0.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # For Apple Sign-In
+  crypto: ^3.0.3
+  
+  # Optional: For better async handling
+  async: ^2.11.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -38,7 +59,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -56,6 +77,8 @@ flutter:
     - assets/images/profile.png
     - assets/images/party.jpg
     - assets/images/tech.jpg
+    - assets/images/google.png
+    - assets/images/apple.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
