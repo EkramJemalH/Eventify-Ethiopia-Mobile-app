@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'dart:math';
-import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -8,7 +6,16 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  GoogleSignIn? _googleSignIn; // Will be null on web
+
+  AuthService() {
+    // Initialize GoogleSignIn only for mobile platforms
+    if (!kIsWeb) {
+      _googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+    }
+  }
 
   // ===================== EMAIL/PASSWORD SIGN UP =====================
   Future<User?> signUpWithEmail({
@@ -58,6 +65,7 @@ class AuthService {
   Future<User?> signInWithEmail({
     required String email,
     required String password,
+    required String role,
   }) async {
     try {
       print('🟡 Starting email sign in for: $email');
@@ -72,19 +80,34 @@ class AuthService {
       if (user != null) {
         print('🟢 User signed in: ${user.uid}');
         
-        // Check if user exists in database, if not create entry
+        // Check if user exists in database
         final snapshot = await _dbRef.child('users/${user.uid}').get();
+        
         if (!snapshot.exists) {
+          // New user - create entry with the role they're signing in as
           print('🟡 User not found in database, creating entry...');
           await _dbRef.child('users').child(user.uid).set({
             'uid': user.uid,
             'email': user.email ?? email.trim(),
             'fullName': user.displayName ?? '',
-            'role': 'explorer',
+            'role': role,
             'provider': 'email',
             'createdAt': DateTime.now().toIso8601String(),
             'updatedAt': DateTime.now().toIso8601String(),
           });
+        } else {
+          // Existing user - verify role matches
+          final userData = snapshot.value as Map<dynamic, dynamic>;
+          final storedRole = userData['role']?.toString() ?? 'explorer';
+          
+          if (storedRole != role) {
+            print('🔴 Role mismatch! User is $storedRole, trying to login as $role');
+            await _auth.signOut();
+            throw FirebaseAuthException(
+              code: 'wrong-role',
+              message: 'Please login as $storedRole instead',
+            );
+          }
         }
       }
 
@@ -99,69 +122,177 @@ class AuthService {
   }
 
   // ===================== GOOGLE SIGN IN =====================
-  Future<User?> signInWithGoogle({required String role}) async {
+  Future<User?> signInWithGoogle({
+    required String role,
+    bool isSignUp = false,
+  }) async {
     try {
-      print('🟡 Starting Google sign in');
+      print('🟡 Starting Google sign in for role: $role');
       
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        print('🟡 Google sign in cancelled');
-        return null;
+      UserCredential userCredential;
+      
+      if (kIsWeb) {
+        // WEB IMPLEMENTATION
+        print('🟡 Using Firebase Google Auth for web');
+        final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        
+        // Sign in with popup on web
+        userCredential = await _auth.signInWithPopup(googleProvider);
+      } else {
+        // MOBILE IMPLEMENTATION (Android/iOS)
+        print('🟡 Using google_sign_in package for mobile');
+        
+        if (_googleSignIn == null) {
+          throw FirebaseAuthException(
+            code: 'google-signin-not-initialized',
+            message: 'Google Sign-In not initialized for mobile',
+          );
+        }
+        
+        final GoogleSignInAccount? googleUser = await _googleSignIn!.signIn();
+        if (googleUser == null) {
+          print('🟡 Google sign in cancelled');
+          return null;
+        }
+
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        
+        userCredential = await _auth.signInWithCredential(credential);
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
 
       if (user != null) {
-        print('🟢 Google user signed in: ${user.uid}');
-        
-        // Check if new user
-        final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-        
-        if (isNewUser) {
-          print('🟡 New Google user, adding to database...');
-          await _dbRef.child('users').child(user.uid).set({
-            'uid': user.uid,
-            'email': user.email ?? '',
-            'fullName': user.displayName ?? googleUser.displayName ?? '',
-            'photoURL': user.photoURL ?? googleUser.photoUrl,
-            'role': role,
-            'provider': 'google',
-            'createdAt': DateTime.now().toIso8601String(),
-            'updatedAt': DateTime.now().toIso8601String(),
-          });
-          print('✅ New Google user added to database');
-        } else {
-          print('🟢 Existing Google user');
-        }
+        await _handleSocialUser(user, role, isSignUp, 'google', userCredential);
       }
 
       return user;
+    } on FirebaseAuthException catch (e) {
+      print('🔴 Firebase Auth Error: ${e.code} - ${e.message}');
+      
+      // Provide helpful error messages
+      if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request') {
+        throw FirebaseAuthException(
+          code: 'cancelled',
+          message: 'Sign in was cancelled',
+        );
+      }
+      
+      rethrow;
     } catch (e) {
       print('🔴 Google sign in failed: $e');
-      rethrow;
+      
+      // Check if it's a web configuration error
+      if (e.toString().contains('ClientID not set') || e.toString().contains('appClientId')) {
+        throw FirebaseAuthException(
+          code: 'configuration-needed',
+          message: 'Please configure Google Sign-In in Firebase Console',
+        );
+      }
+      
+      throw FirebaseAuthException(
+        code: 'unknown-error',
+        message: 'Google Sign-In failed. Please try again.',
+      );
     }
   }
 
   // ===================== APPLE SIGN IN =====================
-  Future<User?> signInWithApple({required String role}) async {
+  Future<User?> signInWithApple({
+    required String role,
+    bool isSignUp = false,
+  }) async {
     try {
-      print('🟡 Starting Apple sign in');
+      print('🟡 Starting Apple sign in for role: $role');
       
-      // For now, return null as Apple Sign-In requires additional setup
-      // TODO: Implement Apple Sign-In when iOS app is ready
-      print('🟡 Apple Sign-In not implemented yet');
-      return null;
+      // Check if we're on iOS or macOS for Apple Sign-In
+      if (!kIsWeb) {
+        // For mobile platforms, Apple Sign-In is only available on iOS/macOS
+        // You need to check the platform properly
+        throw FirebaseAuthException(
+          code: 'platform-not-supported',
+          message: 'Apple Sign-In is currently only available on iOS devices',
+        );
+      }
+      
+      // For web, you can implement Apple Sign-In with Firebase
+      // This requires additional setup in Firebase Console
+      throw FirebaseAuthException(
+        code: 'not-implemented',
+        message: 'Apple Sign-In is not yet implemented for this platform',
+      );
     } catch (e) {
       print('🔴 Apple sign in failed: $e');
       rethrow;
+    }
+  }
+
+  // ===================== HELPER METHOD FOR SOCIAL USERS =====================
+  Future<void> _handleSocialUser(
+    User user,
+    String role,
+    bool isSignUp,
+    String provider,
+    UserCredential? userCredential,
+  ) async {
+    print('🟢 $provider user signed in: ${user.uid}');
+    
+    // Check if this is a new user (from additionalUserInfo)
+    final bool isNewUser = userCredential?.additionalUserInfo?.isNewUser ?? false;
+    print('🟡 Is new user: $isNewUser');
+    
+    // Check if user exists in database
+    final snapshot = await _dbRef.child('users/${user.uid}').get();
+    
+    if (!snapshot.exists || isNewUser || isSignUp) {
+      // New user or signing up - create/update with selected role
+      print('🟡 Creating/updating user in database...');
+      
+      final Map<String, dynamic> userData = {
+        'uid': user.uid,
+        'email': user.email ?? '',
+        'fullName': user.displayName ?? '',
+        'photoURL': user.photoURL ?? '',
+        'role': role,
+        'provider': provider,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      
+      if (!snapshot.exists || isNewUser) {
+        userData['createdAt'] = DateTime.now().toIso8601String();
+      }
+      
+      await _dbRef.child('users').child(user.uid).set(userData);
+      print('✅ User added/updated in database as $role');
+    } else {
+      // Existing user logging in - verify role matches
+      final userData = snapshot.value as Map<dynamic, dynamic>;
+      final storedRole = userData['role']?.toString() ?? 'explorer';
+      
+      if (storedRole != role) {
+        print('🔴 Role mismatch! User is $storedRole, trying to login as $role');
+        await _auth.signOut();
+        if (!kIsWeb && provider == 'google') {
+          await _googleSignIn?.signOut();
+        }
+        throw FirebaseAuthException(
+          code: 'wrong-role',
+          message: 'Please login as $storedRole instead',
+        );
+      }
+      
+      // Update last login time
+      await _dbRef.child('users/${user.uid}').update({
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+      
+      print('✅ Role matches: $storedRole');
     }
   }
 
@@ -180,6 +311,17 @@ class AuthService {
     }
   }
 
+  // ===================== GET USER ROLE =====================
+  Future<String?> getUserRole(String uid) async {
+    try {
+      final data = await getUserData(uid);
+      return data?['role']?.toString();
+    } catch (e) {
+      print('🔴 Error getting user role: $e');
+      return null;
+    }
+  }
+
   // ===================== PASSWORD RESET =====================
   Future<void> resetPassword(String email) async {
     try {
@@ -194,8 +336,14 @@ class AuthService {
   // ===================== SIGN OUT =====================
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      // Sign out from Google on mobile
+      if (!kIsWeb && _googleSignIn != null) {
+        await _googleSignIn!.signOut();
+      }
+      
+      // Sign out from Firebase Auth
       await _auth.signOut();
+      
       print('✅ User signed out');
     } catch (e) {
       print('🔴 Sign out failed: $e');
@@ -207,17 +355,4 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   
   Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // ===================== APPLE HELPER METHODS =====================
-  String _generateNonce([int length = 32]) {
-    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
-  }
-
-  String _sha256ofString(String input) {
-    final bytes = utf8.encode(input);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
 }

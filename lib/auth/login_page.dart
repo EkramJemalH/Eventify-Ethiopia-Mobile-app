@@ -34,103 +34,117 @@ class _LoginPageState extends State<LoginPage> {
     final double buttonWidth = MediaQuery.of(context).size.width * 0.85;
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              const Center(
-                child: Text(
-                  'Login',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+
+              const Text(
+                'Login',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-              
+
               const SizedBox(height: 10),
-              
+
               Text(
                 'as ${widget.role[0].toUpperCase()}${widget.role.substring(1)}',
-                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.grey.shade600,
                 ),
               ),
-              
-              const SizedBox(height: 40),
-              
-              _buildTextField(
+
+              const SizedBox(height: 50),
+
+              _buildInputField(
                 controller: emailController,
                 label: 'Email',
                 keyboardType: TextInputType.emailAddress,
               ),
-              
+
               const SizedBox(height: 20),
-              
-              _buildPasswordField(),
-              
-              const SizedBox(height: 10),
-              
+
+              _buildPasswordField(
+                controller: passwordController,
+                label: 'Password',
+                obscure: obscurePassword,
+                onToggle: () {
+                  setState(() => obscurePassword = !obscurePassword);
+                },
+              ),
+
+              const SizedBox(height: 30),
+
+              // Login Button
+              SizedBox(
+                width: buttonWidth,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: isLoading ? null : _loginWithEmail,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Login',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _showForgotPasswordDialog,
+                  onPressed: _forgotPassword,
                   child: const Text(
                     'Forgot Password?',
-                    style: TextStyle(color: Colors.orange),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.orange,
+                    ),
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 20),
-              
-              ElevatedButton(
-                onPressed: isLoading ? null : _loginWithEmail,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.black,
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Login',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                      ),
-              ),
-              
+
               const SizedBox(height: 30),
-              
+
               Row(
                 children: const [
                   Expanded(child: Divider()),
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Text('OR'),
                   ),
                   Expanded(child: Divider()),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Google Button
               SizedBox(
                 width: buttonWidth,
@@ -145,15 +159,26 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Continue with Google',
-                    style: TextStyle(fontSize: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/google.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Continue with Google',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Apple Button
               SizedBox(
                 width: buttonWidth,
@@ -168,22 +193,32 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Continue with Apple',
-                    style: TextStyle(fontSize: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.apple, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        'Continue with Apple',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 30),
-              
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  const Text(
+                    'Don\'t have an account? ',
+                    style: TextStyle(fontSize: 16),
+                  ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (_) => SignupPage(role: widget.role),
@@ -193,6 +228,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text(
                       'Sign Up',
                       style: TextStyle(
+                        fontSize: 16,
                         color: Colors.orange,
                         fontWeight: FontWeight.bold,
                       ),
@@ -207,167 +243,10 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ===================== LOGIN METHODS =====================
-  Future<void> _loginWithEmail() async {
-    // Validation
-    if (emailController.text.trim().isEmpty) {
-      _showMessage('Please enter your email');
-      return;
-    }
-
-    if (!emailController.text.contains('@')) {
-      _showMessage('Please enter a valid email');
-      return;
-    }
-
-    if (passwordController.text.isEmpty) {
-      _showMessage('Please enter your password');
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      
-      final user = await authService.signInWithEmail(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      if (user != null) {
-        // Check user role from database
-        final userData = await authService.getUserData(user.uid);
-        
-        if (userData != null) {
-          final userRole = userData['role'];
-          
-          // Check if selected role matches database role
-          if (userRole != widget.role) {
-            _showError('Please login as ${userRole[0].toUpperCase()}${userRole.substring(1)}');
-          } else {
-            _showSuccess('Login successful!');
-            _navigateToDashboard(userRole);
-          }
-        } else {
-          _showError('User data not found');
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Login failed';
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'No account found with this email';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Incorrect password';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Invalid email address';
-          break;
-        case 'user-disabled':
-          errorMessage = 'This account has been disabled';
-          break;
-        case 'too-many-requests':
-          errorMessage = 'Too many attempts. Try again later';
-          break;
-        default:
-          errorMessage = 'Login failed: ${e.message}';
-      }
-      _showError(errorMessage);
-    } catch (e) {
-      _showError('An unexpected error occurred');
-      print('Login error: $e');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> _loginWithGoogle() async {
-    setState(() => isLoading = true);
-    
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final user = await authService.signInWithGoogle(role: widget.role);
-      
-      if (user != null) {
-        // For Google sign-in, check role after sign-in
-        final userData = await authService.getUserData(user.uid);
-        
-        if (userData != null) {
-          final userRole = userData['role'];
-          _showSuccess('Google login successful!');
-          _navigateToDashboard(userRole);
-        } else {
-          _showError('User data not found after Google sign-in');
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError('Google login failed: ${e.message}');
-    } catch (e) {
-      _showError('Google login failed');
-      print('Google login error: $e');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> _loginWithApple() async {
-    setState(() => isLoading = true);
-    
-    try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final user = await authService.signInWithApple(role: widget.role);
-      
-      if (user != null) {
-        // For Apple sign-in, check role after sign-in
-        final userData = await authService.getUserData(user.uid);
-        
-        if (userData != null) {
-          final userRole = userData['role'];
-          _showSuccess('Apple login successful!');
-          _navigateToDashboard(userRole);
-        } else {
-          _showError('User data not found after Apple sign-in');
-        }
-      } else {
-        _showError('Apple Sign-In is not available yet. Please use email or Google.');
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError('Apple login failed: ${e.message}');
-    } catch (e) {
-      _showError('Apple login failed');
-      print('Apple login error: $e');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  void _navigateToDashboard(String role) {
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (role == 'explorer') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>  ExploreHome(),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrganizerDashboardPage(),
-          ),
-        );
-      }
-    });
-  }
-
-  // ===================== UI HELPER METHODS =====================
-  Widget _buildTextField({
+  Widget _buildInputField({
     required TextEditingController controller,
     required String label,
-    TextInputType? keyboardType,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
@@ -386,13 +265,18 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildPasswordField() {
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggle,
+  }) {
     return TextField(
-      controller: passwordController,
-      obscureText: obscurePassword,
+      controller: controller,
+      obscureText: obscure,
       style: TextStyle(color: Colors.black.withOpacity(0.5)),
       decoration: InputDecoration(
-        labelText: 'Password',
+        labelText: label,
         labelStyle: TextStyle(color: Colors.black.withOpacity(0.5)),
         filled: true,
         fillColor: const Color(0xFFFAEBDB),
@@ -402,51 +286,233 @@ class _LoginPageState extends State<LoginPage> {
         ),
         suffixIcon: IconButton(
           icon: Icon(
-            obscurePassword ? Icons.visibility_off : Icons.visibility,
+            obscure ? Icons.visibility_off : Icons.visibility,
             color: Colors.orange,
           ),
-          onPressed: () => setState(() => obscurePassword = !obscurePassword),
+          onPressed: onToggle,
         ),
       ),
     );
   }
 
-  void _showForgotPasswordDialog() {
-    final controller = TextEditingController();
+  // ===================== EMAIL LOGIN =====================
+  void _loginWithEmail() async {
+    if (!emailController.text.contains('@')) {
+      _showMessage('Please enter a valid email');
+      return;
+    }
+
+    if (passwordController.text.isEmpty) {
+      _showMessage('Please enter your password');
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      final user = await authService.signInWithEmail(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        role: widget.role,
+      );
+
+      if (user != null) {
+        _showSuccess('Login successful!');
+        _navigateToDashboard();
+      } else {
+        _showError('Login failed. Please check your credentials.');
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Login failed';
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found with this email';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many login attempts. Please try again later';
+          break;
+        case 'wrong-role':
+          errorMessage = e.message ?? 'Please login with the correct role';
+          break;
+        default:
+          errorMessage = 'Login failed: ${e.message}';
+      }
+      _showError(errorMessage);
+    } catch (e) {
+      _showError('An unexpected error occurred');
+      print('Email login error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== GOOGLE LOGIN =====================
+  Future<void> _loginWithGoogle() async {
+    setState(() => isLoading = true);
+    
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      final user = await authService.signInWithGoogle(
+        role: widget.role,
+        isSignUp: false,
+      );
+      
+      if (user != null) {
+        _showSuccess('Google login successful!');
+        _navigateToDashboard();
+      } else {
+        _showError('Google login cancelled.');
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Google login failed';
+      switch (e.code) {
+        case 'wrong-role':
+          errorMessage = e.message ?? 'Please login with the correct role';
+          break;
+        case 'account-exists-with-different-credential':
+          errorMessage = 'An account already exists with the same email address. Please use email/password login.';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'The credential is invalid or has expired';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Google sign-in is not enabled';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This user has been disabled';
+          break;
+        case 'user-not-found':
+          errorMessage = 'No user found with this email';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection';
+          break;
+        case 'popup-closed-by-user':
+          return; // User cancelled, no error message needed
+        default:
+          errorMessage = 'Google login failed: ${e.message}';
+      }
+      _showError(errorMessage);
+      print('Google login error: ${e.code} - ${e.message}');
+    } catch (e) {
+      _showError('Google login failed. Please try again.');
+      print('Google login error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== APPLE LOGIN =====================
+  Future<void> _loginWithApple() async {
+    setState(() => isLoading = true);
+    
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      
+      final user = await authService.signInWithApple(
+        role: widget.role,
+        isSignUp: false,
+      );
+      
+      if (user != null) {
+        _showSuccess('Apple login successful!');
+        _navigateToDashboard();
+      } else {
+        _showError('Apple Sign-In is not available.');
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Apple login failed';
+      switch (e.code) {
+        case 'wrong-role':
+          errorMessage = e.message ?? 'Please login with the correct role';
+          break;
+        case 'not-available':
+          errorMessage = 'Apple Sign-In is not available on this device.';
+          break;
+        case 'account-exists-with-different-credential':
+          errorMessage = 'An account already exists with the same email address. Please use email/password login.';
+          break;
+        case 'cancelled':
+          return; // User cancelled, no error message needed
+        case 'network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection';
+          break;
+        default:
+          errorMessage = 'Apple login failed: ${e.message}';
+      }
+      _showError(errorMessage);
+      print('Apple login error: ${e.code} - ${e.message}');
+    } catch (e) {
+      _showError('Apple login failed. Please try again.');
+      print('Apple login error: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  // ===================== FORGOT PASSWORD =====================
+  void _forgotPassword() async {
+    if (emailController.text.isEmpty || !emailController.text.contains('@')) {
+      _showMessage('Please enter your email address first');
+      return;
+    }
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Reset Password'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter your email',
-            border: OutlineInputBorder(),
-          ),
-          keyboardType: TextInputType.emailAddress,
-        ),
+        content: Text('Send password reset link to ${emailController.text}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.black,
+            ),
             onPressed: () async {
-              if (controller.text.isEmpty || !controller.text.contains('@')) {
-                _showError('Please enter a valid email');
-                return;
-              }
+              Navigator.pop(context);
+              setState(() => isLoading = true);
               
               try {
-                final authService = Provider.of<AuthService>(context, listen: false);
-                await authService.resetPassword(controller.text.trim());
-                Navigator.pop(ctx);
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: emailController.text.trim(),
+                );
                 _showSuccess('Password reset email sent! Check your inbox.');
               } on FirebaseAuthException catch (e) {
-                _showError('Failed to send reset email: ${e.message}');
+                String errorMessage = 'Failed to send reset email';
+                switch (e.code) {
+                  case 'user-not-found':
+                    errorMessage = 'No user found with this email';
+                    break;
+                  case 'invalid-email':
+                    errorMessage = 'Invalid email address';
+                    break;
+                  case 'user-disabled':
+                    errorMessage = 'This account has been disabled';
+                    break;
+                  default:
+                    errorMessage = 'Error: ${e.message}';
+                }
+                _showError(errorMessage);
               } catch (e) {
                 _showError('Failed to send reset email');
+              } finally {
+                setState(() => isLoading = false);
               }
             },
             child: const Text('Send'),
@@ -454,6 +520,27 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
+  }
+
+  // ===================== HELPER METHODS =====================
+  void _navigateToDashboard() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (widget.role == 'explorer') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExploreHome(),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrganizerDashboardPage(),
+          ),
+        );
+      }
+    });
   }
 
   void _showMessage(String message) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class OrganizerEventDetailPage extends StatelessWidget {
   final String eventId;
@@ -25,6 +26,47 @@ class OrganizerEventDetailPage extends StatelessWidget {
     required this.price,
     required this.capacity,
   }) : super(key: key);
+
+  Future<void> _deleteEvent(BuildContext context) async {
+    final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: const Text('Are you sure you want to delete this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await _dbRef.child('events').child(eventId).remove();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Event deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                Navigator.pop(context); // Go back to dashboard
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to delete event: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +96,14 @@ class OrganizerEventDetailPage extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: image.isNotEmpty
+            child: image.isNotEmpty && image.startsWith('http')
                 ? Image.network(image, height: 200, width: double.infinity, fit: BoxFit.cover)
-                : Image.asset('assets/images/placeholder.png', height: 200, width: double.infinity, fit: BoxFit.cover),
+                : Image.asset(
+                    image.isNotEmpty ? image : 'assets/images/event_placeholder.jpg',
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
           ),
           const SizedBox(height: 16),
           Text(title.isNotEmpty ? title : 'No Title', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
@@ -65,13 +112,14 @@ class OrganizerEventDetailPage extends StatelessWidget {
           const SizedBox(height: 4),
           Text('📍 ${location.isNotEmpty ? location : 'N/A'}', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 4),
-          Text('🎤 Performing Artists: ${performers.isNotEmpty ? performers : 'N/A'}', style: const TextStyle(fontSize: 16)),
+          if (performers.isNotEmpty)
+            Text('🎤 Performing Artists: $performers', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 12),
           Text(description.isNotEmpty ? description : 'No description provided', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 12),
           Text('Organizer: ${organizer.isNotEmpty ? organizer : 'N/A'}', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 12),
-          Text('Price: ₵${price.toInt()}', style: const TextStyle(fontSize: 16)),
+          Text('Price: ₵${price.toInt()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange)),
           Text('Capacity: $capacity spots', style: const TextStyle(fontSize: 16)),
         ],
       ),
@@ -82,7 +130,13 @@ class OrganizerEventDetailPage extends StatelessWidget {
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: Edit event logic
+                  // TODO: Navigate to Edit Event page
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Edit feature coming soon!'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
@@ -95,9 +149,7 @@ class OrganizerEventDetailPage extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Delete event logic
-                },
+                onPressed: () => _deleteEvent(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 16),

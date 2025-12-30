@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'event_detail_page.dart';
 
 class BookmarkPage extends StatefulWidget {
   BookmarkPage({Key? key}) : super(key: key);
@@ -8,25 +11,103 @@ class BookmarkPage extends StatefulWidget {
 }
 
 class _BookmarkPageState extends State<BookmarkPage> {
-  // Sample bookmarked events
-  List<Map<String, String>> bookmarkedEvents = [
-    {
-      'image': 'assets/images/party.jpg',
-      'title': 'Concert Night Addis',
-      'location': '📍 Friendship Square, Addis Ababa',
-      'dateTime': '📅 Dec 21, 2025 — 7:00 PM',
-      'performers': '🎤 Featuring: Jano Band, Hewan Gebrewold',
-      'price': '🎫 From 300 ETB',
-    },
-    {
-      'image': 'assets/images/tech.jpg',
-      'title': 'Tech Expo 2025',
-      'location': '📍 Millennium Hall, Addis Ababa',
-      'dateTime': '📅 Jan 15, 2026 — 10:00 AM',
-      'performers': '🎤 Speakers: AI Experts, Developers',
-      'price': '🎫 From 150 ETB',
-    },
-  ];
+  // Firebase instances
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  
+  List<Map<String, dynamic>> bookmarkedEvents = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get user's bookmarks from Firebase
+      final snapshot = await _dbRef
+          .child('users')
+          .child(user.uid)
+          .child('bookmarks')
+          .get();
+
+      final List<Map<String, dynamic>> events = [];
+
+      if (snapshot.exists) {
+        final bookmarks = snapshot.value as Map<dynamic, dynamic>;
+        
+        // Get details for each bookmarked event
+        for (final eventId in bookmarks.keys) {
+          final eventSnapshot = await _dbRef
+              .child('events')
+              .child(eventId.toString())
+              .get();
+
+          if (eventSnapshot.exists) {
+            final event = Map<String, dynamic>.from(eventSnapshot.value as Map);
+            event['firebaseKey'] = eventId.toString();
+            events.add(event);
+          }
+        }
+      }
+
+      setState(() {
+        bookmarkedEvents = events;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading bookmarks: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _removeBookmark(String eventId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      // Remove from Firebase
+      await _dbRef
+          .child('users')
+          .child(user.uid)
+          .child('bookmarks')
+          .child(eventId)
+          .remove();
+
+      // Update UI
+      setState(() {
+        bookmarkedEvents.removeWhere((event) => event['firebaseKey'] == eventId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Removed from bookmarks'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Error removing bookmark: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove bookmark'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,40 +133,69 @@ class _BookmarkPageState extends State<BookmarkPage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: bookmarkedEvents.isEmpty
-            ? const Center(
-                child: Text(
-                  'No bookmarks yet',
-                  style: TextStyle(fontSize: 18),
-                ),
-              )
-            : ListView.builder(
-                itemCount: bookmarkedEvents.length,
-                itemBuilder: (context, index) {
-                  final event = bookmarkedEvents[index];
-                  return EventCard(
-                    image: event['image']!,
-                    title: event['title']!,
-                    location: event['location']!,
-                    dateTime: event['dateTime']!,
-                    performers: event['performers']!,
-                    price: event['price']!,
-                    onRemove: () {
-                      setState(() {
-                        bookmarkedEvents.removeAt(index);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${event['title']} removed from bookmarks'),
-                        ),
-                      );
-                    },
-                  );
-                },
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Colors.orange,
               ),
-      ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: bookmarkedEvents.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No bookmarks yet',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: bookmarkedEvents.length,
+                      itemBuilder: (context, index) {
+                        final event = bookmarkedEvents[index];
+                        
+                        // Extract event data with fallbacks
+                        final title = event['title']?.toString() ?? 'Untitled Event';
+                        final date = event['date']?.toString() ?? 'Date not set';
+                        final time = event['startTime']?.toString() ?? '';
+                        final location = event['location']?.toString() ?? 'Location not set';
+                        final performers = event['performers']?.toString() ?? '';
+                        final price = event['price'] ?? 0.0;
+                        final image = event['image']?.toString() ?? 'assets/images/event_placeholder.jpg';
+                        final isFree = event['isFree'] ?? false;
+                        final eventId = event['firebaseKey']?.toString() ?? '';
+
+                        return EventCard(
+                          image: image,
+                          title: title,
+                          location: '📍 $location',
+                          dateTime: '📅 $date${time.isNotEmpty ? ' — $time' : ''}',
+                          performers: performers.isNotEmpty ? '🎤 Featuring: $performers' : '',
+                          price: '🎫 ${isFree == true ? 'Free' : 'From ${(price as double).toInt()} ETB'}',
+                          onRemove: () {
+                            _removeBookmark(eventId);
+                          },
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EventDetailPage(
+                                  eventId: eventId,
+                                  title: title,
+                                  image: image,
+                                  dateTime: '$date${time.isNotEmpty ? ' • $time' : ''}',
+                                  location: location,
+                                  performers: performers,
+                                  description: event['description']?.toString() ?? '',
+                                  organizer: event['organizer']?.toString() ?? 'Organizer',
+                                  price: price as double,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
     );
   }
 }
@@ -98,7 +208,8 @@ class EventCard extends StatelessWidget {
   final String dateTime;
   final String performers;
   final String price;
-  final VoidCallback? onRemove; // optional remove button
+  final VoidCallback onRemove; // required remove button
+  final VoidCallback onTap; // for viewing details
 
   EventCard({
     required this.image,
@@ -107,55 +218,72 @@ class EventCard extends StatelessWidget {
     required this.dateTime,
     required this.performers,
     required this.price,
-    this.onRemove,
+    required this.onRemove,
+    required this.onTap,
     Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFFFAEBDB),
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-            child: Image.asset(
-              image,
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 6),
-                Text(location),
-                Text(dateTime),
-                Text(performers),
-                const SizedBox(height: 4),
-                Text(price),
-                const SizedBox(height: 10),
-                // Row: details + optional remove
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tap to view details',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w600,
-                      ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        color: const Color(0xFFFAEBDB),
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              child: image.startsWith('http')
+                  ? Image.network(
+                      image,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 180,
+                          width: double.infinity,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.event, size: 50, color: Colors.grey),
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      image,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
                     ),
-                    if (onRemove != null)
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 6),
+                  Text(location),
+                  Text(dateTime),
+                  Text(performers),
+                  const SizedBox(height: 4),
+                  Text(price),
+                  const SizedBox(height: 10),
+                  // Row: details + remove button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tap to view details',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       GestureDetector(
                         onTap: onRemove,
                         child: const Icon(
@@ -163,12 +291,13 @@ class EventCard extends StatelessWidget {
                           color: Colors.redAccent,
                         ),
                       ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -39,7 +39,6 @@ class _SignupPageState extends State<SignupPage> {
     final double buttonWidth = MediaQuery.of(context).size.width * 0.85;
 
     return Scaffold(
-      // REMOVED AppBar completely
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
@@ -372,22 +371,56 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   // ===================== GOOGLE SIGN UP =====================
-  void _signUpWithGoogle() async {
+  Future<void> _signUpWithGoogle() async {
     setState(() => isLoading = true);
     
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final user = await authService.signInWithGoogle(role: widget.role);
+      
+      final user = await authService.signInWithGoogle(
+        role: widget.role,
+        isSignUp: true,
+      );
       
       if (user != null) {
         _showSuccess('Google sign up successful!');
         _navigateToDashboard();
+      } else {
+        _showError('Google sign up cancelled.');
       }
     } on FirebaseAuthException catch (e) {
-      _showError('Google sign up failed: ${e.message}');
+      String errorMessage = 'Google sign up failed';
+      switch (e.code) {
+        case 'wrong-role':
+          errorMessage = e.message ?? 'Role error occurred';
+          break;
+        case 'account-exists-with-different-credential':
+          errorMessage = 'An account already exists with the same email address.';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'The credential is invalid or has expired';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Google sign-in is not enabled';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This user has been disabled';
+          break;
+        case 'user-not-found':
+          errorMessage = 'No user found with this email';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection';
+          break;
+        case 'popup-closed-by-user':
+          return; // User cancelled, no error message needed
+        default:
+          errorMessage = 'Google sign up failed: ${e.message}';
+      }
+      _showError(errorMessage);
       print('Google sign up error: ${e.code} - ${e.message}');
     } catch (e) {
-      _showError('Google sign up failed');
+      _showError('Google sign up failed. Please try again.');
       print('Google sign up error: $e');
     } finally {
       setState(() => isLoading = false);
@@ -395,24 +428,47 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   // ===================== APPLE SIGN UP =====================
-  void _signUpWithApple() async {
+  Future<void> _signUpWithApple() async {
     setState(() => isLoading = true);
     
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final user = await authService.signInWithApple(role: widget.role);
+      
+      final user = await authService.signInWithApple(
+        role: widget.role,
+        isSignUp: true,
+      );
       
       if (user != null) {
         _showSuccess('Apple sign up successful!');
         _navigateToDashboard();
       } else {
-        _showError('Apple Sign-In is not available yet. Please use email or Google.');
+        _showError('Apple Sign-In is not available.');
       }
     } on FirebaseAuthException catch (e) {
-      _showError('Apple sign up failed: ${e.message}');
+      String errorMessage = 'Apple sign up failed';
+      switch (e.code) {
+        case 'wrong-role':
+          errorMessage = e.message ?? 'Role error occurred';
+          break;
+        case 'not-available':
+          errorMessage = 'Apple Sign-In is not available on this device.';
+          break;
+        case 'account-exists-with-different-credential':
+          errorMessage = 'An account already exists with the same email address.';
+          break;
+        case 'cancelled':
+          return; // User cancelled, no error message needed
+        case 'network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection';
+          break;
+        default:
+          errorMessage = 'Apple sign up failed: ${e.message}';
+      }
+      _showError(errorMessage);
       print('Apple sign up error: ${e.code} - ${e.message}');
     } catch (e) {
-      _showError('Apple sign up failed');
+      _showError('Apple sign up failed. Please try again.');
       print('Apple sign up error: $e');
     } finally {
       setState(() => isLoading = false);

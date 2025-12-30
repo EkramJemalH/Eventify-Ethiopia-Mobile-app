@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'event_detail_page.dart';
-import '../profile_page.dart'; // Make sure this file exists
+import '../profile_page.dart';
+import 'bookmark_page.dart';
 
 class ExploreHome extends StatefulWidget {
-  ExploreHome({Key? key}) : super(key: key);
+  const ExploreHome({Key? key}) : super(key: key);
 
   @override
   State<ExploreHome> createState() => _ExploreHomeState();
@@ -11,6 +15,173 @@ class ExploreHome extends StatefulWidget {
 
 class _ExploreHomeState extends State<ExploreHome> {
   int _selectedIndex = 0;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  List<Map<String, dynamic>> _allEvents = [];
+  List<Map<String, dynamic>> _filteredEvents = [];
+  bool _isLoading = true;
+  String _selectedCategory = 'All'; // Default to 'All'
+  final TextEditingController _searchController = TextEditingController();
+
+  // Define your categories
+  final List<Map<String, dynamic>> _categories = [
+    {'id': 'All', 'icon': Icons.all_inclusive, 'label': 'All'},
+    {'id': 'Sports & Fitness', 'icon': Icons.sports_soccer, 'label': 'Sports'},
+    {'id': 'Music', 'icon': Icons.music_note, 'label': 'Music'},
+    {'id': 'Business', 'icon': Icons.business, 'label': 'Business'},
+    {'id': 'Art', 'icon': Icons.palette, 'label': 'Art'},
+    {'id': 'Tech', 'icon': Icons.computer, 'label': 'Tech'},
+    {'id': 'Entertainment', 'icon': Icons.movie, 'label': 'Entertainment'},
+    {'id': 'Community', 'icon': Icons.people, 'label': 'Community'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFirebaseAndLoadEvents();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeFirebaseAndLoadEvents() async {
+    try {
+      await Firebase.initializeApp();
+      _loadAllEvents();
+    } catch (e) {
+      print('Error initializing Firebase: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadAllEvents() async {
+    try {
+      final snapshot = await _dbRef.child('events').get();
+      final List<Map<String, dynamic>> events = [];
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        
+        data.forEach((key, value) {
+          try {
+            final event = Map<String, dynamic>.from(value as Map);
+            event['firebaseKey'] = key.toString();
+            if (event['image'] == null || event['image'].toString().isEmpty) {
+              event['image'] = '';
+            }
+            events.add(event);
+          } catch (e) {
+            print('Error parsing event: $e');
+          }
+        });
+        
+        events.sort((a, b) {
+          final timestampA = a['timestamp'] ?? a['createdAt'] ?? 0;
+          final timestampB = b['timestamp'] ?? b['createdAt'] ?? 0;
+          return (timestampB as int).compareTo(timestampA as int);
+        });
+      }
+
+      setState(() {
+        _allEvents = events;
+        _filteredEvents = events; // Initially show all events
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading events: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterEvents() {
+    String searchText = _searchController.text.toLowerCase();
+    
+    setState(() {
+      _filteredEvents = _allEvents.where((event) {
+        // Category filter
+        bool categoryMatch = _selectedCategory == 'All' || 
+                           (event['category']?.toString() == _selectedCategory);
+        
+        // Search filter
+        bool searchMatch = searchText.isEmpty ||
+            (event['title']?.toString().toLowerCase().contains(searchText) ?? false) ||
+            (event['location']?.toString().toLowerCase().contains(searchText) ?? false) ||
+            (event['description']?.toString().toLowerCase().contains(searchText) ?? false) ||
+            (event['performers']?.toString().toLowerCase().contains(searchText) ?? false);
+        
+        return categoryMatch && searchMatch;
+      }).toList();
+    });
+  }
+
+  void _onSearchChanged() {
+    _filterEvents();
+  }
+
+  void _selectCategory(String categoryId) {
+    setState(() {
+      _selectedCategory = categoryId;
+    });
+    _filterEvents();
+  }
+
+  Future<void> _toggleBookmark(String eventId) async {
+    try {
+      await Firebase.initializeApp();
+      
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please login to save bookmarks'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final dbRef = FirebaseDatabase.instance.ref();
+      final bookmarkRef = dbRef
+          .child('users')
+          .child(user.uid)
+          .child('bookmarks')
+          .child(eventId);
+
+      final snapshot = await bookmarkRef.get();
+      
+      if (snapshot.exists) {
+        await bookmarkRef.remove();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Removed from bookmarks'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        await bookmarkRef.set({
+          'eventId': eventId,
+          'bookmarkedAt': ServerValue.timestamp,
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added to bookmarks'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling bookmark: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -21,7 +192,18 @@ class _ExploreHomeState extends State<ExploreHome> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeContent(),
+      HomeContent(
+        events: _filteredEvents, // Use filtered events
+        isLoading: _isLoading,
+        loadEvents: _loadAllEvents,
+        toggleBookmark: _toggleBookmark,
+        categories: _categories,
+        selectedCategory: _selectedCategory,
+        onCategorySelected: _selectCategory,
+        searchController: _searchController,
+        eventCount: _filteredEvents.length,
+        totalEventCount: _allEvents.length,
+      ),
       BookmarkPage(),
     ];
 
@@ -42,158 +224,222 @@ class _ExploreHomeState extends State<ExploreHome> {
 }
 
 //////////////////////////////////////////////////
-// HOME PAGE
+// HOME PAGE CONTENT
 //////////////////////////////////////////////////
 class HomeContent extends StatelessWidget {
-  HomeContent({Key? key}) : super(key: key);
+  final List<Map<String, dynamic>> events;
+  final bool isLoading;
+  final VoidCallback loadEvents;
+  final Function(String) toggleBookmark;
+  final List<Map<String, dynamic>> categories;
+  final String selectedCategory;
+  final Function(String) onCategorySelected;
+  final TextEditingController searchController;
+  final int eventCount;
+  final int totalEventCount;
+
+  const HomeContent({
+    Key? key,
+    required this.events,
+    required this.isLoading,
+    required this.loadEvents,
+    required this.toggleBookmark,
+    required this.categories,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+    required this.searchController,
+    required this.eventCount,
+    required this.totalEventCount,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _buildAppBar(context, 'HOME'),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search + Filter
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      prefixIcon:
-                          Icon(Icons.search, color: Colors.grey.withOpacity(0.7)),
-                      hintText: 'Search',
-                      filled: true,
-                      fillColor: Colors.grey.withOpacity(0.2),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+      body: RefreshIndicator(
+        onRefresh: () async => loadEvents(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Search + Filter
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.search, color: Colors.grey.withOpacity(0.7)),
+                        hintText: 'Search events...',
+                        filled: true,
+                        fillColor: Colors.grey.withOpacity(0.2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 8),
+                  // Filter button removed since we have category chips
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.filter_alt, color: Colors.white),
                   ),
-                  child: const Icon(Icons.filter_list, color: Colors.white),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Category header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text('Category',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('See All', style: TextStyle(color: Colors.orange)),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Categories
-            SizedBox(
-              height: 90,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: const [
-                  CategoryItem(icon: Icons.event, label: 'Casual'),
-                  CategoryItem(icon: Icons.festival, label: 'Fest'),
-                  CategoryItem(icon: Icons.music_note, label: 'Entertainment'),
-                  CategoryItem(icon: Icons.computer, label: 'Tech'),
-                  CategoryItem(icon: Icons.people, label: 'Community'),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-            // Events
-            Expanded(
-              child: ListView(
+              // Category header with count
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  EventCard(
-                    image: 'assets/images/party.jpg',
-                    title: 'Concert Night Addis',
-                    location: '📍 Friendship Square, Addis Ababa',
-                    dateTime: '📅 Dec 21, 2025 — 7:00 PM',
-                    performers: '🎤 Featuring: Jano Band, Hewan Gebrewold',
-                    price: '🎫 From 300 ETB',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EventDetailPage(
-                            title: 'Concert Night Addis',
-                            image: 'assets/images/party.jpg',
-                            dateTime: 'Dec 21, 2025 • 7:00 PM',
-                            location: 'Friendship Square, Addis Ababa',
-                            performers: 'Jano Band, Hewan Gebrewold, DJ Sky',
-                            description:
-                                'Concert Night Addis is a lively year-end music show featuring top Ethiopian artists, great sound, and fun night-time vibes at Friendship Square. Perfect for anyone who loves live music and entertainment.',
-                            organizer:
-                                'EthioFinder Events\n📞 +251 900 123 456\n📧 contact@ethiofinder.com',
+                  const Text(
+                    'Categories',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '$eventCount events',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Categories - Horizontal Scrollable Chips
+              SizedBox(
+                height: 60,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
+                    final isSelected = selectedCategory == category['id'];
+                    
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index == categories.length - 1 ? 0 : 8,
+                        left: index == 0 ? 0 : 4,
+                      ),
+                      child: FilterChip(
+                        label: Text(
+                          category['label'],
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  EventCard(
-                    image: 'assets/images/tech.jpg',
-                    title: 'Tech Expo 2025',
-                    location: '📍 Millennium Hall, Addis Ababa',
-                    dateTime: '📅 Jan 15, 2026 — 10:00 AM',
-                    performers: '🎤 Speakers: AI Experts, Developers',
-                    price: '🎫 From 150 ETB',
-                    onTap: () {
-                      // Add navigation to detail page for Tech Expo if needed
-                    },
-                  ),
-                ],
+                        avatar: Icon(
+                          category['icon'],
+                          size: 18,
+                          color: isSelected ? Colors.white : Colors.grey,
+                        ),
+                        selected: isSelected,
+                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        selectedColor: Colors.orange,
+                        checkmarkColor: Colors.white,
+                        onSelected: (selected) {
+                          onCategorySelected(category['id']);
+                        },
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+              const SizedBox(height: 16),
 
-//////////////////////////////////////////////////
-// CATEGORY ITEM
-//////////////////////////////////////////////////
-class CategoryItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
+              // Events List
+              Expanded(
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.orange))
+                    : events.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.event_note, size: 80, color: Colors.grey.shade300),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No events found',
+                                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  selectedCategory == 'All' 
+                                    ? 'Check back later for new events'
+                                    : 'No events in "$selectedCategory" category',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: events.length,
+                            itemBuilder: (context, index) {
+                              final event = events[index];
+                              final eventId = event['firebaseKey']?.toString() ?? '';
+                              
+                              final title = event['title']?.toString() ?? 'Untitled Event';
+                              final date = event['date']?.toString() ?? 'Date not set';
+                              final time = event['startTime']?.toString() ?? '';
+                              final location = event['location']?.toString() ?? 'Location not set';
+                              final performers = event['performers']?.toString() ?? '';
+                              final description = event['description']?.toString() ?? '';
+                              final organizer = event['organizer']?.toString() ?? 'Organizer';
+                              final price = event['price'] ?? 0.0;
+                              final image = event['image']?.toString() ?? '';
+                              final isFree = event['isFree'] ?? false;
+                              final category = event['category']?.toString() ?? 'General';
 
-  const CategoryItem({
-    required this.icon,
-    required this.label,
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80,
-      margin: const EdgeInsets.only(right: 12),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.grey.withOpacity(0.2),
-            child: Icon(icon, color: Colors.grey.withOpacity(0.6), size: 28),
+                              return EventCard(
+                                image: image,
+                                title: title,
+                                location: '📍 $location',
+                                dateTime: '📅 $date${time.isNotEmpty ? ' — $time' : ''}',
+                                performers: performers.isNotEmpty ? '🎤 Featuring: $performers' : '',
+                                price: '🎫 ${isFree == true ? 'Free' : '₵${(price as double).toInt()}'}',
+                                category: category,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EventDetailPage(
+                                        eventId: eventId,
+                                        title: title,
+                                        image: image,
+                                        dateTime: '$date${time.isNotEmpty ? ' • $time' : ''}',
+                                        location: location,
+                                        performers: performers,
+                                        description: description,
+                                        organizer: organizer,
+                                        price: price as double,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onBookmark: () {
+                                  toggleBookmark(eventId);
+                                },
+                              );
+                            },
+                          ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontSize: 12), textAlign: TextAlign.center),
-        ],
+        ),
       ),
     );
   }
@@ -209,7 +455,9 @@ class EventCard extends StatelessWidget {
   final String dateTime;
   final String performers;
   final String price;
+  final String category;
   final VoidCallback onTap;
+  final VoidCallback onBookmark;
 
   const EventCard({
     required this.image,
@@ -218,7 +466,9 @@ class EventCard extends StatelessWidget {
     required this.dateTime,
     required this.performers,
     required this.price,
+    required this.category,
     required this.onTap,
+    required this.onBookmark,
     Key? key,
   }) : super(key: key);
 
@@ -235,27 +485,66 @@ class EventCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                child: Image.asset(image, height: 180, width: double.infinity, fit: BoxFit.cover),
+              // Category badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  category,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.orange,
+                  ),
+                ),
               ),
+              const SizedBox(height: 8),
+              
+              // Image with proper error handling
+              _buildEventImage(image),
               const SizedBox(height: 12),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text(location),
-              Text(dateTime),
-              Text(performers),
-              Text(price),
+              Text(location, style: const TextStyle(fontSize: 14)),
+              Text(dateTime, style: const TextStyle(fontSize: 14)),
+              if (performers.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(performers, style: const TextStyle(fontSize: 14)),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                price,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Tap to view details', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Tap to view details',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      // Remove from bookmark functionality
-                    },
+                    icon: const Icon(Icons.bookmark_border, color: Colors.orange),
+                    onPressed: onBookmark,
                   ),
                 ],
               ),
@@ -265,51 +554,51 @@ class EventCard extends StatelessWidget {
       ),
     );
   }
-}
 
-//////////////////////////////////////////////////
-// BOOKMARK PAGE
-//////////////////////////////////////////////////
-class BookmarkPage extends StatelessWidget {
-  BookmarkPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(context, 'BOOKMARK'),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            EventCard(
-              image: 'assets/images/party.jpg',
-              title: 'Concert Night Addis',
-              location: '📍 Friendship Square, Addis Ababa',
-              dateTime: '📅 Dec 21, 2025 — 7:00 PM',
-              performers: '🎤 Featuring: Jano Band, Hewan Gebrewold',
-              price: '🎫 From 300 ETB',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EventDetailPage(
-                      title: 'Concert Night Addis',
-                      image: 'assets/images/party.jpg',
-                      dateTime: 'Dec 21, 2025 • 7:00 PM',
-                      location: 'Friendship Square, Addis Ababa',
-                      performers: 'Jano Band, Hewan Gebrewold, DJ Sky',
-                      description:
-                          'Concert Night Addis is a lively year-end music show featuring top Ethiopian artists, great sound, and fun night-time vibes at Friendship Square. Perfect for anyone who loves live music and entertainment.',
-                      organizer:
-                          'EthioFinder Events\n📞 +251 900 123 456\n📧 contact@ethiofinder.com',
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
+  Widget _buildEventImage(String imageUrl) {
+    if (imageUrl.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
         ),
+      );
+    } else if (imageUrl.isNotEmpty && imageUrl.contains('assets/')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          imageUrl,
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
+        ),
+      );
+    } else {
+      return _buildImagePlaceholder();
+    }
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      height: 180,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(
+        Icons.event,
+        size: 50,
+        color: Colors.grey,
       ),
     );
   }
@@ -322,7 +611,14 @@ PreferredSizeWidget _buildAppBar(BuildContext context, String title) {
   return AppBar(
     backgroundColor: Colors.white,
     elevation: 0,
-    title: Text(title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 24)),
+    title: Text(
+      title,
+      style: const TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.w900,
+        fontSize: 24,
+      ),
+    ),
     actions: [
       Padding(
         padding: const EdgeInsets.only(right: 16),
@@ -330,7 +626,7 @@ PreferredSizeWidget _buildAppBar(BuildContext context, String title) {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ProfilePage()),
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
             );
           },
           child: const CircleAvatar(

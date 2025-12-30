@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'services/auth_service.dart';
-import 'explorer_user/my_booking_page.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -57,7 +55,7 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const MyBookingPage(),
+                  builder: (_) => MyBookingPage(),
                 ),
               );
             },
@@ -70,7 +68,12 @@ class SettingsPage extends StatelessWidget {
             'Notifications',
             icon: Icons.notifications,
             onPressed: () {
-              // TODO: Notifications settings
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notifications feature coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
             },
           ),
 
@@ -81,7 +84,12 @@ class SettingsPage extends StatelessWidget {
             'Privacy & Security',
             icon: Icons.security,
             onPressed: () {
-              // TODO: Privacy settings
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Privacy & Security coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
             },
           ),
 
@@ -92,7 +100,12 @@ class SettingsPage extends StatelessWidget {
             'Help & Support',
             icon: Icons.help,
             onPressed: () {
-              // TODO: Help & Support
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Help & Support coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
             },
           ),
 
@@ -186,11 +199,7 @@ class SettingsPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    user?.providerData.first.providerId == 'google.com' 
-                        ? 'Google Account' 
-                        : user?.providerData.first.providerId == 'apple.com'
-                          ? 'Apple Account'
-                          : 'Email Account',
+                    _getAccountType(user),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.orange.shade800,
@@ -204,6 +213,18 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getAccountType(User? user) {
+    if (user == null) return 'Guest';
+    
+    for (final provider in user.providerData) {
+      if (provider.providerId == 'google.com') return 'Google Account';
+      if (provider.providerId == 'apple.com') return 'Apple Account';
+      if (provider.providerId == 'facebook.com') return 'Facebook Account';
+    }
+    
+    return 'Email Account';
   }
 
   // ===================== BUTTON WIDGET =====================
@@ -259,13 +280,13 @@ class SettingsPage extends StatelessWidget {
               Navigator.pop(context); // Close dialog
               
               try {
-                final authService = Provider.of<AuthService>(context, listen: false);
-                await authService.signOut();
+                await FirebaseAuth.instance.signOut();
                 
-                // Navigate to home page (role selection)
+                // Navigate to WELCOME/ROLE SELECTION PAGE
+                // Use the correct route for your app
                 Navigator.pushNamedAndRemoveUntil(
                   context,
-                  '/home',
+                  '/welcome', // CHANGE THIS to your actual welcome/role selection route
                   (route) => false,
                 );
                 
@@ -273,13 +294,16 @@ class SettingsPage extends StatelessWidget {
                   const SnackBar(
                     content: Text('Logged out successfully'),
                     backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
                   ),
                 );
               } catch (e) {
+                print('Logout error: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Logout failed: $e'),
+                    content: Text('Logout failed: ${e.toString()}'),
                     backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               }
@@ -336,8 +360,20 @@ class SettingsPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: const Text('Enter "DELETE" to confirm account deletion:'),
+        title: const Text('Confirm Account Deletion'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This will permanently:'),
+            SizedBox(height: 8),
+            Text('• Delete your account'),
+            Text('• Remove all your data'),
+            Text('• Cancel any upcoming bookings'),
+            SizedBox(height: 12),
+            Text('Type "DELETE" to confirm:'),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -345,23 +381,164 @@ class SettingsPage extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement account deletion
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account deletion feature coming soon'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
+              _performAccountDeletion(context);
             },
             child: const Text(
-              'Confirm',
+              'Confirm Delete',
               style: TextStyle(color: Colors.red),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performAccountDeletion(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No user logged in'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.orange),
+        ),
+      );
+
+      try {
+        // First, try to delete user data from Realtime Database
+        final dbRef = FirebaseDatabase.instance.ref();
+        
+        // Delete from users collection
+        await dbRef.child('users').child(user.uid).remove();
+        
+        // Also delete any events created by this user (for organizers)
+        final eventsSnapshot = await dbRef.child('events').orderByChild('creatorId').equalTo(user.uid).get();
+        if (eventsSnapshot.exists) {
+          final events = eventsSnapshot.value as Map<dynamic, dynamic>;
+          for (final eventId in events.keys) {
+            await dbRef.child('events').child(eventId.toString()).remove();
+          }
+        }
+        
+        print('User data deleted from database');
+      } catch (e) {
+        print('Error deleting user data from database: $e');
+        // Continue with auth deletion even if database deletion fails
+      }
+
+      // Delete user from Firebase Auth
+      await user.delete();
+      
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account deleted successfully'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Navigate to WELCOME/ROLE SELECTION PAGE
+      // IMPORTANT: Use the correct route for your app
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/welcome', // CHANGE THIS to your actual welcome/role selection route
+        (route) => false,
+      );
+      
+    } on FirebaseAuthException catch (e) {
+      // Close loading dialog first
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      
+      print('Auth deletion error: $e');
+      String errorMessage = 'Failed to delete account';
+      
+      if (e.code == 'requires-recent-login') {
+        // This error happens when user hasn't authenticated recently
+        errorMessage = 'Please log in again before deleting your account';
+        
+        // Show dialog to ask user to re-authenticate
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Re-authentication Required'),
+            content: const Text(
+              'For security reasons, please log in again before deleting your account.\n\n'
+              'Click OK to logout and login again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context); // Close dialog
+                  
+                  // Logout first
+                  await FirebaseAuth.instance.signOut();
+                  
+                  // Navigate to login page
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/welcome', // Your login/welcome route
+                    (route) => false,
+                  );
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please login again to delete your account'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        
+      } else if (e.code == 'user-not-found') {
+        errorMessage = 'User account not found';
+      } else if (e.code == 'invalid-credential') {
+        errorMessage = 'Invalid credentials';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog first
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      
+      print('Unexpected error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _showAboutDialog(BuildContext context) {
@@ -394,6 +571,57 @@ class SettingsPage extends StatelessWidget {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ===================== MY BOOKING PAGE (Placeholder) =====================
+class MyBookingPage extends StatelessWidget {
+  const MyBookingPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Bookings'),
+        backgroundColor: Colors.orange,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.history,
+                size: 80,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Booking History',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Your booking history will appear here',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
