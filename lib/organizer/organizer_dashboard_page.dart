@@ -414,6 +414,23 @@ class _OrganizerDashboardPageState extends State<OrganizerDashboardPage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // Event Image
+                                      if (image.isNotEmpty)
+                                        Container(
+                                          height: 180,
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(12),
+                                            image: DecorationImage(
+                                              image: image.startsWith('http')
+                                                  ? NetworkImage(image) as ImageProvider
+                                                  : AssetImage(image),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                      
                                       // Event Title
                                       Text(
                                         title,

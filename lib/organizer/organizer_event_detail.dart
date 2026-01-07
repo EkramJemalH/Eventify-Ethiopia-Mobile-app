@@ -94,33 +94,130 @@ class OrganizerEventDetailPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: image.isNotEmpty && image.startsWith('http')
-                ? Image.network(image, height: 200, width: double.infinity, fit: BoxFit.cover)
-                : Image.asset(
-                    image.isNotEmpty ? image : 'assets/images/event_placeholder.jpg',
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+          // Event Image
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: Colors.grey.shade200,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: _buildImageWidget(),
+            ),
           ),
+          
           const SizedBox(height: 16),
-          Text(title.isNotEmpty ? title : 'No Title', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          
+          // Event Title
+          Text(
+            title.isNotEmpty ? title : 'No Title', 
+            style: const TextStyle(
+              fontSize: 22, 
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          
           const SizedBox(height: 8),
-          Text('🗓 ${dateTime.isNotEmpty ? dateTime : 'N/A'}', style: const TextStyle(fontSize: 16)),
+          
+          // Event Date
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                dateTime.isNotEmpty ? dateTime : 'N/A', 
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          
           const SizedBox(height: 4),
-          Text('📍 ${location.isNotEmpty ? location : 'N/A'}', style: const TextStyle(fontSize: 16)),
+          
+          // Event Location
+          Row(
+            children: [
+              const Icon(Icons.location_on, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                location.isNotEmpty ? location : 'N/A', 
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          
+          // Performers (if available)
+          if (performers.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.mic, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Performing Artists: $performers', 
+                    style: const TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          const SizedBox(height: 12),
+          
+          // Event Description
+          Text(
+            description.isNotEmpty ? description : 'No description provided', 
+            style: const TextStyle(fontSize: 16),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Organizer
+          Row(
+            children: [
+              const Icon(Icons.person, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Organizer: ${organizer.isNotEmpty ? organizer : 'N/A'}', 
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Price
+          Row(
+            children: [
+              const Icon(Icons.attach_money, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Price: ₵${price.toInt()}', 
+                style: const TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          
           const SizedBox(height: 4),
-          if (performers.isNotEmpty)
-            Text('🎤 Performing Artists: $performers', style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 12),
-          Text(description.isNotEmpty ? description : 'No description provided', style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 12),
-          Text('Organizer: ${organizer.isNotEmpty ? organizer : 'N/A'}', style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 12),
-          Text('Price: ₵${price.toInt()}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange)),
-          Text('Capacity: $capacity spots', style: const TextStyle(fontSize: 16)),
+          
+          // Capacity
+          Row(
+            children: [
+              const Icon(Icons.people, color: Colors.orange, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Capacity: $capacity spots', 
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: Padding(
@@ -143,7 +240,10 @@ class OrganizerEventDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Edit', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Edit', 
+                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -155,12 +255,70 @@ class OrganizerEventDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Delete', 
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageWidget() {
+    if (image.isEmpty) {
+      return Image.asset(
+        'assets/images/event_placeholder.jpg',
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+    
+    // Check if it's a network URL
+    if (image.startsWith('http://') || image.startsWith('https://')) {
+      return Image.network(
+        image,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/event_placeholder.jpg',
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    }
+    
+    // Check if it's an asset path
+    if (image.startsWith('assets/')) {
+      return Image.asset(
+        image,
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/event_placeholder.jpg',
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    }
+    
+    // For other cases (like file paths), show placeholder
+    return Image.asset(
+      'assets/images/event_placeholder.jpg',
+      height: 200,
+      width: double.infinity,
+      fit: BoxFit.cover,
     );
   }
 }

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class AddEventPage extends StatefulWidget {
   final String userId;
@@ -28,6 +32,10 @@ class _AddEventPageState extends State<AddEventPage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Image picker
+  File? _eventImage;
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void dispose() {
     _eventNameController.dispose();
@@ -39,6 +47,20 @@ class _AddEventPageState extends State<AddEventPage> {
     _ticketPriceController.dispose();
     _paymentLinkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _eventImage = File(pickedFile.path);
+      });
+    }
   }
 
   Future<void> _createEvent() async {
@@ -58,60 +80,60 @@ class _AddEventPageState extends State<AddEventPage> {
 
       // Generate unique event key
       final eventKey = _dbRef.child('events').push().key;
-      
-      // Format combined date and time for better sorting
+
+      // Format combined date and time for sorting
       final combinedDateTime = '${_eventDateController.text.trim()} ${_startTimeController.text.trim()}';
-      
+
       // Get organizer name from user
       final organizerName = user.displayName ?? 'Organizer';
-      
-      // Prepare event data with organizer information
+
+      // Upload image if picked
+      String imageUrl = 'assets/images/event_placeholder.jpg';
+      if (_eventImage != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('event_images')
+            .child('$eventKey.jpg');
+        await storageRef.putFile(_eventImage!);
+        imageUrl = await storageRef.getDownloadURL();
+      }
+
+      // Prepare event data
       final newEvent = {
-        // Event details (your existing fields)
         'title': _eventNameController.text.trim(),
-        'date': _eventDateController.text.trim(), // Keep original date
+        'date': _eventDateController.text.trim(),
         'startTime': _startTimeController.text.trim(),
         'endTime': _endTimeController.text.trim(),
         'location': _locationController.text.trim(),
         'description': _detailsController.text.trim(),
-        'details': _detailsController.text.trim(), // Keep both for compatibility
-        'performers': '', // Add empty performers field for compatibility
+        'details': _detailsController.text.trim(),
+        'performers': '',
         'category': category,
         'isFree': isFree,
         'price': isFree ? 0.0 : double.tryParse(_ticketPriceController.text.trim()) ?? 0.0,
         'paymentLink': _paymentLinkController.text.trim(),
-        
-        // CRITICAL: Organizer/creator identification fields
         'organizer': organizerName,
         'organizerId': user.uid,
         'userId': user.uid,
         'creatorId': user.uid,
         'organizerUid': user.uid,
-        
-        // Metadata for sorting and organization
         'eventId': eventKey,
         'createdAt': ServerValue.timestamp,
         'updatedAt': ServerValue.timestamp,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
-        
-        // Date/time for combined sorting
         'dateTime': combinedDateTime,
         'sortDate': _eventDateController.text.trim(),
-        
-        // Media fields
-        'image': 'assets/images/event_placeholder.jpg',
+        'image': imageUrl,
         'video': '',
-        
-        // Additional fields for home page display
         'capacity': 100,
         'availableSpots': 100,
         'status': 'upcoming',
       };
 
-      // Save to Firebase under the generated key
+      // Save to Firebase
       await _dbRef.child('events').child(eventKey!).set(newEvent);
-      
-      // Show success message
+
+      // Success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Event created successfully!'),
@@ -119,21 +141,16 @@ class _AddEventPageState extends State<AddEventPage> {
           duration: Duration(seconds: 2),
         ),
       );
-      
-      // Clear form and navigate back
+
+      // Reset form and navigate back
       _resetForm();
-      
-      // Delay slightly before navigating to show success message
       await Future.delayed(const Duration(milliseconds: 1500));
-      
-      // Navigate back to dashboard
       Navigator.pop(context, true);
-      
+
     } catch (e) {
       print('Error creating event: $e');
       final errorMessage = e.toString();
-      
-      // Check if this is a permission denied error
+
       if (errorMessage.contains('PERMISSION_DENIED') || errorMessage.contains('permission-denied')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -146,9 +163,7 @@ class _AddEventPageState extends State<AddEventPage> {
             action: SnackBarAction(
               label: 'FIX NOW',
               textColor: Colors.white,
-              onPressed: () {
-                _showSecurityRulesHelp();
-              },
+              onPressed: _showSecurityRulesHelp,
             ),
           ),
         );
@@ -174,24 +189,15 @@ class _AddEventPageState extends State<AddEventPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Your app cannot write to Firebase due to security rules.',
-                style: TextStyle(fontSize: 16),
-              ),
+              const Text('Your app cannot write to Firebase due to security rules.'),
               const SizedBox(height: 16),
-              const Text(
-                'To fix this, go to Firebase Console:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text('To fix this, go to Firebase Console:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               const Text('1. Open your Firebase project'),
               const Text('2. Click "Realtime Database"'),
               const Text('3. Go to "Rules" tab'),
               const SizedBox(height: 16),
-              const Text(
-                'Paste these rules for testing:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text('Paste these rules for testing:', style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(12),
@@ -212,18 +218,12 @@ class _AddEventPageState extends State<AddEventPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                '⚠️ Note: These are development rules. Update them for production.',
-                style: TextStyle(fontSize: 12, color: Colors.orange),
-              ),
+              const Text('⚠️ Note: These are development rules. Update them for production.', style: TextStyle(fontSize: 12, color: Colors.orange)),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
         ],
       ),
     );
@@ -242,6 +242,7 @@ class _AddEventPageState extends State<AddEventPage> {
     setState(() {
       category = 'Sports & Fitness';
       isFree = true;
+      _eventImage = null;
     });
   }
 
@@ -258,6 +259,31 @@ class _AddEventPageState extends State<AddEventPage> {
           key: _formKey,
           child: Column(
             children: [
+              // Image picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                    image: _eventImage != null
+                        ? DecorationImage(
+                            image: FileImage(_eventImage!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _eventImage == null
+                      ? const Center(
+                          child: Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 16),
+
               // Event Name
               TextFormField(
                 controller: _eventNameController,
@@ -430,7 +456,7 @@ class _AddEventPageState extends State<AddEventPage> {
                 ),
               const SizedBox(height: 16),
 
-              // Payment Link (optional for paid events)
+              // Payment Link
               if (!isFree)
                 TextFormField(
                   controller: _paymentLinkController,
@@ -471,7 +497,7 @@ class _AddEventPageState extends State<AddEventPage> {
                   ),
                 ],
               ),
-              
+
               // Info message
               const SizedBox(height: 16),
               Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'ticket_qr_page.dart'; // 👈 Import the QR page
+import 'ticket_qr_page.dart';
+import 'booking_page.dart'; // To access bookedTickets
 
 class MyBookingPage extends StatefulWidget {
   const MyBookingPage({Key? key}) : super(key: key);
@@ -15,7 +16,6 @@ class _MyBookingPageState extends State<MyBookingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -23,74 +23,34 @@ class _MyBookingPageState extends State<MyBookingPage> {
           onTap: () => Navigator.pop(context),
           child: const Padding(
             padding: EdgeInsets.only(left: 16),
-            child: Center(
-              child: Text(
-                'Back',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            child: Center(child: Text('Back', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
           ),
         ),
       ),
-
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
-
-            // Header
-            const Center(
-              child: Text(
-                'My Booking',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
+            const Center(child: Text('My Booking', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
             const SizedBox(height: 16),
 
-            // Upcoming / Past buttons
+            // Toggle
             Row(
               children: [
-                _tabButton(
-                  title: 'Upcoming',
-                  isActive: showUpcoming,
-                  onTap: () {
-                    setState(() {
-                      showUpcoming = true;
-                    });
-                  },
-                ),
+                _tabButton(title: 'Upcoming', isActive: showUpcoming, onTap: () => setState(() => showUpcoming = true)),
                 const SizedBox(width: 12),
-                _tabButton(
-                  title: 'Past',
-                  isActive: !showUpcoming,
-                  onTap: () {
-                    setState(() {
-                      showUpcoming = false;
-                    });
-                  },
-                ),
+                _tabButton(title: 'Past', isActive: !showUpcoming, onTap: () => setState(() => showUpcoming = false)),
               ],
             ),
-
             const SizedBox(height: 16),
 
-            // Booking cards
+            // Booking list
             Expanded(
-              child: ListView(
-                children: [
-                  _bookingCard(),
-                ],
-              ),
+              child: bookedTickets.isEmpty
+                  ? const Center(child: Text('No bookings yet'))
+                  : ListView(
+                      children: bookedTickets.map((ticket) => _bookingCard(ticket)).toList(),
+                    ),
             ),
           ],
         ),
@@ -98,92 +58,36 @@ class _MyBookingPageState extends State<MyBookingPage> {
     );
   }
 
-  // Tab button widget
-  Widget _tabButton({
-    required String title,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
+  Widget _tabButton({required String title, required bool isActive, required VoidCallback onTap}) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.orange : const Color(0xFFFAEBDB),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          decoration: BoxDecoration(color: isActive ? Colors.orange : const Color(0xFFFAEBDB), borderRadius: BorderRadius.circular(10)),
+          child: Center(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold))),
         ),
       ),
     );
   }
 
-  // Booking card widget
-  Widget _bookingCard() {
+  Widget _bookingCard(BookedTicket ticket) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAEBDB),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFFAEBDB), borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '🎫 Addis Tech Summit 2025',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
+          Text('🎫 ${ticket.eventTitle}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-
-          const Text('📅 12 Dec 2025 | ⏰ 10:00 AM'),
+          Text('💳 ${ticket.price > 0 ? 'Paid' : 'Free'} • ${ticket.paymentMethod}'),
           const SizedBox(height: 4),
-
-          const Text('📍 Addis Ababa'),
+          Text('🎟️ Tickets: ${ticket.ticketCount}'),
           const SizedBox(height: 4),
-
-          const Text('💳 Paid • Telebirr (Simulated)'),
-          const SizedBox(height: 4),
-
-          const Text('🎟️ Tickets: 2'),
-          const SizedBox(height: 4),
-
-          const Text(
-            'Status: Confirmed',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 12),
-
           GestureDetector(
-            onTap: () {
-              // ✅ Navigate to QR Code page
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const TicketQrPage(),
-                ),
-              );
-            },
-            child: const Text(
-              'View Tickets',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketQrPage())),
+            child: const Text('View Tickets', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

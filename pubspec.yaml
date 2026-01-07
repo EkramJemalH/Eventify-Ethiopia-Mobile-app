@@ -39,7 +39,8 @@ dependencies:
   
   # Firebase Database
   firebase_database: ^10.3.1
-  
+  firebase_storage: ^11.3.4
+  image_picker: ^1.0.4
   # Other Firebase packages
   google_sign_in: ^6.1.6
   sign_in_with_apple: ^5.0.0
@@ -79,6 +80,11 @@ flutter:
     - assets/images/tech.jpg
     - assets/images/google.png
     - assets/images/apple.png
+    - assets/images/art.jpg
+    - assets/images/Cover.jpg
+    - assets/images/Djtime.jpg
+    - assets/images/business.jpg
+    - assets/images/event_placeholder.jpg
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
