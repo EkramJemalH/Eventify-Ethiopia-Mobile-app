@@ -2,7 +2,7 @@
 
 Eventify Ethiopia is a comprehensive mobile application designed to revolutionize event management and discovery in Ethiopia. Whether you're looking for the hottest jazz festival in Addis Ababa or organizing a local tech meetup, Eventify connects organizers with attendees seamlessly.
 
-## 📱 Features
+## Features
 
 ### For Explorers (Users)
 *   **Discover Events:** Browse a wide range of events including Sports, Music, Tech, Art, and Community gatherings.
@@ -18,14 +18,14 @@ Eventify Ethiopia is a comprehensive mobile application designed to revolutioniz
 *   **Manage Listings:** Edit or delete (cancel) existing events.
 *   **Sample Data:** "Populate Events" feature to quickly seed the dashboard with realistic demo data for testing.
 
-## 🛠 Tech Stack
+## Tech Stack
 
 *   **Frontend:** Flutter (Dart)
 *   **Backend:** Firebase Realtime Database
 *   **Authentication:** Firebase Auth
 *   **Storage:** Firebase Storage (for event images)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 *   Flutter SDK installed
@@ -49,16 +49,10 @@ Eventify Ethiopia is a comprehensive mobile application designed to revolutioniz
     flutter run
     ```
 
-## 📸 Screenshots
-
-| Home Page | Event Details | Organizer Dashboard |
-|:---------:|:-------------:|:-------------------:|
-| *(Add Screenshot)* | *(Add Screenshot)* | *(Add Screenshot)* |
-
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
