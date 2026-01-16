@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'my_booking_page.dart'; // To navigate after booking
+import 'ExplorerHome.dart'; // To navigate after booking
 
 // Simple model for booked tickets
 class BookedTicket {
@@ -176,7 +176,7 @@ class _BookingPageState extends State<BookingPage> {
 
     // Navigate to MyBookingPage
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MyBookingPage()));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ExploreHome(initialIndex: 2)));
     });
   }
 }

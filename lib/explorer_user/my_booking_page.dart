@@ -19,13 +19,7 @@ class _MyBookingPageState extends State<MyBookingPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: const Padding(
-            padding: EdgeInsets.only(left: 16),
-            child: Center(child: Text('Back', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold))),
-          ),
-        ),
+        automaticallyImplyLeading: false, // Prevent default back button
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

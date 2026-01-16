@@ -5,9 +5,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'event_detail_page.dart';
 import '../profile_page.dart';
 import 'bookmark_page.dart';
+import 'my_booking_page.dart';
 
 class ExploreHome extends StatefulWidget {
-  const ExploreHome({Key? key}) : super(key: key);
+  final int initialIndex;
+
+  const ExploreHome({Key? key, this.initialIndex = 0}) : super(key: key);
 
   @override
   State<ExploreHome> createState() => _ExploreHomeState();
@@ -37,6 +40,7 @@ class _ExploreHomeState extends State<ExploreHome> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex; // Set initial index
     _initializeFirebaseAndLoadEvents();
     _searchController.addListener(_onSearchChanged);
   }
@@ -204,7 +208,9 @@ class _ExploreHomeState extends State<ExploreHome> {
         eventCount: _filteredEvents.length,
         totalEventCount: _allEvents.length,
       ),
+
       BookmarkPage(),
+      const MyBookingPage(),
     ];
 
     return Scaffold(
@@ -217,6 +223,7 @@ class _ExploreHomeState extends State<ExploreHome> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: 'Bookmark'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'My Booking'),
         ],
       ),
     );
@@ -399,7 +406,7 @@ class HomeContent extends StatelessWidget {
                               final performers = event['performers']?.toString() ?? '';
                               final description = event['description']?.toString() ?? '';
                               final organizer = event['organizer']?.toString() ?? 'Organizer';
-                              final price = event['price'] ?? 0.0;
+                              final price = (event['price'] as num?)?.toDouble() ?? 0.0;
                               final image = event['image']?.toString() ?? '';
                               final isFree = event['isFree'] ?? false;
                               final category = event['category']?.toString() ?? 'General';
@@ -410,7 +417,7 @@ class HomeContent extends StatelessWidget {
                                 location: '📍 $location',
                                 dateTime: '📅 $date${time.isNotEmpty ? ' — $time' : ''}',
                                 performers: performers.isNotEmpty ? '🎤 Featuring: $performers' : '',
-                                price: '🎫 ${isFree == true ? 'Free' : '₵${(price as double).toInt()}'}',
+                                price: '🎫 ${isFree == true ? 'Free' : '₵${price.toInt()}'}',
                                 category: category,
                                 onTap: () {
                                   Navigator.push(
@@ -425,7 +432,7 @@ class HomeContent extends StatelessWidget {
                                         performers: performers,
                                         description: description,
                                         organizer: organizer,
-                                        price: price as double,
+                                        price: price,
                                       ),
                                     ),
                                   );

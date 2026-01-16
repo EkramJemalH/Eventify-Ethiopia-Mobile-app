@@ -1,16 +1,64 @@
-# eventify_flutter
+# Eventify Ethiopia
 
-A new Flutter project.
+Eventify Ethiopia is a comprehensive mobile application designed to revolutionize event management and discovery in Ethiopia. Whether you're looking for the hottest jazz festival in Addis Ababa or organizing a local tech meetup, Eventify connects organizers with attendees seamlessly.
 
-## Getting Started
+## 📱 Features
 
-This project is a starting point for a Flutter application.
+### For Explorers (Users)
+*   **Discover Events:** Browse a wide range of events including Sports, Music, Tech, Art, and Community gatherings.
+*   **Smart Search & Filters:** Easily find what you're looking for with category filters and search functionality.
+*   **Detailed Insights:** View event details including location, time, price, and performer lineups.
+*   **Bookings:** Secure your spot at events (Free & Paid).
+*   **Bookmarks:** Save events to your personal watchlist.
+*   **User Profile:** Manage your account and bookings.
 
-A few resources to get you started if this is your first Flutter project:
+### For Organizers
+*   **Dashboard:** A dedicated hub to manage your events.
+*   **Create Events:** Intuitive form to publish new events with images, locations, and ticket details.
+*   **Manage Listings:** Edit or delete (cancel) existing events.
+*   **Sample Data:** "Populate Events" feature to quickly seed the dashboard with realistic demo data for testing.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🛠 Tech Stack
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+*   **Frontend:** Flutter (Dart)
+*   **Backend:** Firebase Realtime Database
+*   **Authentication:** Firebase Auth
+*   **Storage:** Firebase Storage (for event images)
+
+## 🚀 Getting Started
+
+### Prerequisites
+*   Flutter SDK installed
+*   Android Studio / VS Code
+*   A connected Android device or Emulator
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/Eventify-Ethiopia-Mobile-app.git
+    ```
+
+2.  **Install dependencies**
+    ```bash
+    flutter pub get
+    ```
+
+3.  **Run the application**
+    ```bash
+    flutter run
+    ```
+
+## 📸 Screenshots
+
+| Home Page | Event Details | Organizer Dashboard |
+|:---------:|:-------------:|:-------------------:|
+| *(Add Screenshot)* | *(Add Screenshot)* | *(Add Screenshot)* |
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

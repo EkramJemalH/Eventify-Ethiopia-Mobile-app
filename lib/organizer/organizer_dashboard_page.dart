@@ -226,6 +226,166 @@ class _OrganizerDashboardPageState extends State<OrganizerDashboardPage> {
     }
   }
 
+  Future<void> _seedSampleEvents() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please login first")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final List<Map<String, dynamic>> eventsToSeed = [
+      {
+        'title': 'Great Ethiopian Run',
+        'date': '20-11-2024',
+        'startTime': '06:00 AM',
+        'endTime': '12:00 PM',
+        'location': 'Meskel Square, Addis Ababa',
+        'description': 'The annual 10km race through the streets of Addis Ababa. Join thousands of participants in this carnival of running.',
+        'category': 'Sports & Fitness',
+        'price': 500.0,
+        'isFree': false,
+        'capacity': 50000,
+        'organizer': 'Great Ethiopian Run',
+        'image': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Great_Ethiopian_Run.jpg/640px-Great_Ethiopian_Run.jpg',
+      },
+      {
+        'title': 'Addis Jazz Festival',
+        'date': '15-12-2024',
+        'startTime': '07:00 PM',
+        'endTime': '11:00 PM',
+        'location': 'Ghion Hotel, Addis Ababa',
+        'description': 'An evening of smooth jazz featuring top local and international artists. Experience the unique Ethio-Jazz sound.',
+        'category': 'Music',
+        'price': 1000.0,
+        'isFree': false,
+        'capacity': 500,
+        'organizer': 'Addis Jazz Club',
+        'image': 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Tech Summit 2024',
+        'date': '10-01-2025',
+        'startTime': '09:00 AM',
+        'endTime': '05:00 PM',
+        'location': 'Science Museum, Addis Ababa',
+        'description': 'The biggest tech conference in East Africa. Network with startups, investors, and developers.',
+        'category': 'Tech',
+        'price': 0.0,
+        'isFree': true,
+        'capacity': 1000,
+        'organizer': 'Tech Ethiopia',
+        'image': 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Art of Ethiopia',
+        'date': '05-02-2025',
+        'startTime': '10:00 AM',
+        'endTime': '06:00 PM',
+        'location': 'National Museum',
+        'description': 'A showcase of contemporary and traditional Ethiopian art. Meet the artists and purchase unique pieces.',
+        'category': 'Art',
+        'price': 200.0,
+        'isFree': false,
+        'capacity': 300,
+        'organizer': 'National Arts Council',
+        'image': 'https://images.unsplash.com/photo-1460661619276-88383568c197?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Coffee Fest',
+        'date': '14-02-2025',
+        'startTime': '08:00 AM',
+        'endTime': '08:00 PM',
+        'location': 'Millennium Hall',
+        'description': 'Celebrate the birthplace of coffee. Tasting sessions, bariste competitions, and cultural ceremonies.',
+        'category': 'Community',
+        'price': 150.0,
+        'isFree': false,
+        'capacity': 2000,
+        'organizer': 'Ethiopian Coffee Assoc.',
+        'image': 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Startup Pitch Night',
+        'date': '25-02-2025',
+        'startTime': '06:00 PM',
+        'endTime': '09:00 PM',
+        'location': 'IceAddis',
+        'description': 'Watch 10 innovative startups pitch their ideas to a panel of judges. Great networking opportunity.',
+        'category': 'Business',
+        'price': 0.0,
+        'isFree': true,
+        'capacity': 100,
+        'organizer': 'IceAddis Hub',
+        'image': 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Cultural Dance Show',
+        'date': '01-03-2025',
+        'startTime': '07:30 PM',
+        'endTime': '10:00 PM',
+        'location': 'Yod Abyssinia',
+        'description': 'Authentic traditional music and dance from diverse Ethiopian cultures. Dinner included.',
+        'category': 'Entertainment',
+        'price': 800.0,
+        'isFree': false,
+        'capacity': 250,
+        'organizer': 'Yod Abyssinia',
+        'image': 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=800',
+      },
+      {
+        'title': 'Charity Gala Dinner',
+        'date': '15-03-2025',
+        'startTime': '07:00 PM',
+        'endTime': '11:00 PM',
+        'location': 'Sheraton Addis',
+        'description': 'Fundraising event for education initiatives. Formal attire required.',
+        'category': 'Community',
+        'price': 2500.0,
+        'isFree': false,
+        'capacity': 400,
+        'organizer': 'Addis Charity Foundation',
+        'image': 'https://images.unsplash.com/photo-1519671482502-9759101d4574?auto=format&fit=crop&q=80&w=800',
+      },
+    ];
+
+    try {
+      for (var eventData in eventsToSeed) {
+        final eventKey = _dbRef.child('events').push().key;
+        final newEvent = {
+          ...eventData,
+          'organizer': eventData['organizer'] ?? user.displayName ?? _userName,
+          'organizerId': user.uid,
+          'creatorId': user.uid,
+          'userId': user.uid,
+          'details': eventData['description'],
+          'createdAt': ServerValue.timestamp,
+          'updatedAt': ServerValue.timestamp,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'availableSpots': eventData['capacity'],
+          'status': 'upcoming',
+        };
+        await _dbRef.child('events').child(eventKey!).set(newEvent);
+      }
+      
+      await _loadUserAndEvents();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added ${eventsToSeed.length} events!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print("Error seeding events: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -242,6 +402,11 @@ class _OrganizerDashboardPageState extends State<OrganizerDashboardPage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cloud_upload, color: Colors.orange),
+            tooltip: 'Populate Events',
+            onPressed: _seedSampleEvents,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: GestureDetector(

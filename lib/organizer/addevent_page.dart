@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -33,7 +35,8 @@ class _AddEventPageState extends State<AddEventPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Image picker
-  File? _eventImage;
+  XFile? _pickedImage;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -57,8 +60,10 @@ class _AddEventPageState extends State<AddEventPage> {
     );
 
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _eventImage = File(pickedFile.path);
+        _pickedImage = pickedFile;
+        _imageBytes = bytes;
       });
     }
   }
@@ -89,12 +94,15 @@ class _AddEventPageState extends State<AddEventPage> {
 
       // Upload image if picked
       String imageUrl = 'assets/images/event_placeholder.jpg';
-      if (_eventImage != null) {
+      if (_pickedImage != null && _imageBytes != null) {
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('event_images')
             .child('$eventKey.jpg');
-        await storageRef.putFile(_eventImage!);
+        
+        // Upload bytes (works on both Web and Mobile)
+        final metadata = SettableMetadata(contentType: 'image/jpeg');
+        await storageRef.putData(_imageBytes!, metadata);
         imageUrl = await storageRef.getDownloadURL();
       }
 
@@ -242,7 +250,8 @@ class _AddEventPageState extends State<AddEventPage> {
     setState(() {
       category = 'Sports & Fitness';
       isFree = true;
-      _eventImage = null;
+      _pickedImage = null;
+      _imageBytes = null;
     });
   }
 
@@ -268,14 +277,14 @@ class _AddEventPageState extends State<AddEventPage> {
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8),
-                    image: _eventImage != null
+                    image: _imageBytes != null
                         ? DecorationImage(
-                            image: FileImage(_eventImage!),
+                            image: MemoryImage(_imageBytes!),
                             fit: BoxFit.cover,
                           )
                         : null,
                   ),
-                  child: _eventImage == null
+                  child: _imageBytes == null
                       ? const Center(
                           child: Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
                         )
